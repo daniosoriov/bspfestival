@@ -1,0 +1,19 @@
+/*
+Theme Name: WP Suarez Child
+Theme URI: www.danioshiweb.com
+Template: wp_suarez
+Author: Daniel Osorio
+Author URI: www.danioshiweb.com
+Version: 1.0.1458769556
+Updated: 2016-03-23 21:45:56
+*/
+
+@charset "UTF-8";
+
+.event-details {
+  display: flex;
+}
+
+.event-item {
+  flex: 0 1 50%;
+}
