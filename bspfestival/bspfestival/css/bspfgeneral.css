@@ -1,0 +1,111 @@
+/* Logo sprite using http://www.spritecow.com/ */
+.logo-sprite {
+  display: -webkit-box;
+  display: -moz-box;
+  display: -ms-flexbox;
+  display: -webkit-flex;
+  display: flex;
+  
+  -webkit-flex-flow: row wrap;
+  flex-flow: wrap;
+  
+  justify-content: space-around;
+  align-items: center;
+}
+.logo-sprite > a {
+  flex: 0 1 150px;
+  padding: 0 0 25px;
+}
+.logo-sprite > a > div {
+  margin: 0 auto;
+}
+
+.worldsp-sprite {
+  background: url('https://www.bspfestival.org/wp-content/uploads/2017/05/LOGOS.png') no-repeat -15px -31px;
+  width: 119px;
+  height: 69px;
+}
+.bnr-sprite {
+  background: url('https://www.bspfestival.org/wp-content/uploads/2017/05/LOGOS.png') no-repeat -168px -29px;
+  width: 79px;
+  height: 83px;
+}
+.visit-brussels-sprite {
+  background: url('https://www.bspfestival.org/wp-content/uploads/2017/05/LOGOS.png') no-repeat -276px -52px;
+  width: 191px;
+  height: 38px;
+}
+.hotel-bloom-sprite {
+  background: url('https://www.bspfestival.org/wp-content/uploads/2017/05/LOGOS.png') no-repeat -501px -52px;
+  width: 159px;
+  height: 38px;
+}
+.magnum-sprite {
+  background: url('https://www.bspfestival.org/wp-content/uploads/2017/05/LOGOS.png') no-repeat -694px -35px;
+  width: 73px;
+  height: 71px;
+}
+.laboriver-sprite {
+  background: url('https://www.bspfestival.org/wp-content/uploads/2017/05/LOGOS.png') no-repeat -801px -42px;
+  width: 127px;
+  height: 64px;
+}
+.brussels-sprite {
+  background: url('https://www.bspfestival.org/wp-content/uploads/2017/05/LOGOS.png') no-repeat -47px -155px;
+  width: 109px;
+  height: 54px;
+}
+.apf-sprite {
+  background: url('https://www.bspfestival.org/wp-content/uploads/2017/05/LOGOS.png') no-repeat -200px -146px;
+  width: 72px;
+  height: 72px;
+}
+.clikclik-sprite {
+  background: url('https://www.bspfestival.org/wp-content/uploads/2017/05/LOGOS.png') no-repeat -304px -146px;
+  width: 72px;
+  height: 72px;
+}
+.tpa-sprite {
+  background: url('https://www.bspfestival.org/wp-content/uploads/2017/05/LOGOS.png') no-repeat -408px -164px;
+  width: 236px;
+  height: 36px;
+}
+.sfstreet-sprite {
+  background: url('https://www.bspfestival.org/wp-content/uploads/2017/05/LOGOS.png') no-repeat -676px -138px;
+  width: 207px;
+  height: 88px;
+}
+
+#header-sticky ul.cshero-dropdown li.no_group > .sub-menu {
+  border-top: 3px solid #D05A8B;
+}
+
+.workshop-title h1 {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 300;
+  color: white;
+  font-size: 50px;
+  line-height: 50px;
+}
+
+.workshop-subtitle h2 {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 300;
+  color: white;
+  font-size: 28px;
+  line-height: 28px;
+  text-transform: none;
+}
+
+.workshop-title-copyright {
+  color: white;
+  font-style: italic;
+  position: absolute;
+  margin: 0;
+  padding: 0;
+  left: 15px;
+  top: 188px;
+  font-size: 13px;
+  font-weight: 200;
+  letter-spacing: 1.2px;
+}

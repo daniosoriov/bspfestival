@@ -158,7 +158,6 @@ class BSPFPluginClass {
       $title = ($is_voted) ? 'Favorite!' : 'Make favorite!';
       $icon = '<i class=\'fa '. $star .' star-bspf-pub\' aria-hidden=\'true\' title=\''. $title .'\' data-basename=\''. $basename .'\' data-category=\''. $category .'\'></i>';
       
-      // Facebook tool to create URLs: https://apps.lazza.dk/facebook/
       $content .= '
         <div class="col-md-4">
           <div class="img-wrapper" 
@@ -245,6 +244,7 @@ class BSPFPluginClass {
   function BSPFInit() {
     // Register the stylesheet
     wp_register_style( 'bspfestival-stylesheet', plugins_url( 'css/bspfestival.css', __FILE__ ) );
+    wp_register_style( 'bspfestival-stylesheet-general', plugins_url( 'css/bspfgeneral.css', __FILE__ ) );
     // Register the script
     wp_register_script( 'bspfestival-js', plugins_url( 'js/bspfestival.js', __FILE__ ), array() );
     
@@ -266,6 +266,7 @@ class BSPFPluginClass {
       wp_enqueue_style( 'lightgallery-css' );
       wp_enqueue_script( 'lightgallery-js' );
     }
+    wp_enqueue_style( 'bspfestival-stylesheet-general' );
   }
   
   public function BSPFAjaxGetVote() {
