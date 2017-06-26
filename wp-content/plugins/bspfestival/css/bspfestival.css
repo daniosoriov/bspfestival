@@ -1,0 +1,213 @@
+.alert {
+    padding: 5px 0;
+}
+
+.close {
+    background: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    text-shadow: none !important;
+    border: none !important;
+    transition: none;
+}
+
+.modal-title {
+    text-align: center;
+    padding-top: 7px;
+    padding-left: 34px;
+}
+
+.modal-body {
+    text-align: center;
+}
+
+.image-preview {
+    max-width: 70%;
+    display: block;
+    margin: 0 auto;
+    padding-bottom: 15px;
+}
+
+.bspf-gallery-wrapper {
+    padding-top: 35px;
+}
+
+.bspf-toolbar {
+    display: none;
+    overflow: hidden;
+    background-color: rgba(255, 255, 255, 1);
+    position: fixed;
+    bottom: 0;
+    width: 75%;
+    z-index: 99999;
+    box-shadow: 0 0px 10px #666;
+    padding: 10px 30px;
+    border-radius: 3px 3px 0 0;
+}
+
+.toolbar-vote .fa {
+    cursor: pointer;
+}
+
+.star-bspf-toolbar {
+    -webkit-transition: all 0.5s ease;
+    -moz-transition: all 0.5s ease;
+    -o-transition: all 0.5s ease;
+    transition: all 0.5s ease;
+}
+
+.star-bspf-toolbar.selected {
+    font-size: 125% !important;
+}
+
+.row-bspf {
+    margin-bottom: 15px;
+}
+
+#grid {
+    overflow: scroll;
+    height: 1024px;
+    margin: 0 auto;
+    background: #222;
+}
+
+@media screen and (max-width: 480px) {
+    #grid[data-columns]::before {
+        content: '1 .column.size-1of1';
+    }
+}
+
+@media screen and (min-width: 481px) and (max-width: 768px) {
+    #grid[data-columns]::before {
+        content: '2 .column.size-1of2';
+    }
+}
+
+@media screen and (min-width: 769px) and (max-width: 1023px) {
+    #grid[data-columns]::before {
+        content: '3 .column.size-1of3';
+    }
+}
+
+@media screen and (min-width: 1024px) {
+    #grid[data-columns]::before {
+        content: '4 .column.size-1of4';
+    }
+}
+
+/* Again, you’re free to use and define the classes: */
+.column {
+    float: left;
+    padding: 10px;
+}
+
+.size-1of1 {
+    width: 100%;
+}
+
+.size-1of2 {
+    width: 50%;
+}
+
+.size-1of3 {
+    width: 33.333%;
+}
+
+.size-1of4 {
+    width: 25%;
+}
+
+.grid-item {
+    padding: 2.5px;
+}
+
+/* clear fix */
+/*
+.grid:after {
+  content: '';
+  display: block;
+  clear: both;
+}
+
+/* 3 columns by default */
+/*
+.grid-sizer, .grid-item { width: 32%; }
+.gutter-sizer { width: 2%; }
+.grid-item {
+  float: left;
+  margin-bottom: 15px;
+}
+
+@media screen and (min-width: 768px) {
+  /* 4 columns for larger screens */
+/*
+  .grid-sizer, .grid-item { width: 23.875%; }
+  .gutter-sizer { width: 1.5%; }
+}
+@media screen and (min-width: 1024px) {
+  /* 5 columns for larger screens */
+/*
+  .grid-sizer, .grid-item { width: 19.2%; }
+  .gutter-sizer { width: 1%; }
+}
+*/
+
+.img-bspf {
+    display: block !important;
+    cursor: pointer;
+    border: none;
+    background-color: transparent;
+    padding: 0;
+    border-radius: 0;
+    -webkit-box-shadow: 0 2px 5px rgba(0, 0, 0, .16);
+    -moz-box-shadow: 0 2px 5px rgba(0, 0, 0, .16);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, .16);
+}
+
+.img-bspf-private {
+    cursor: pointer;
+}
+
+.img-bspf-private:hover {
+    -webkit-box-shadow: 0 2px 5px rgba(0, 0, 0, .36);
+    -moz-box-shadow: 0 2px 5px rgba(0, 0, 0, .36);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, .36);
+}
+
+.img-bspf-selected {
+    -webkit-box-shadow: 0 2px 5px rgba(43, 43, 202, 0.75);
+    -moz-box-shadow: 0 2px 5px rgba(43, 43, 202, 0.75);
+    box-shadow: 0 2px 5px rgba(43, 43, 202, 0.75);
+}
+
+.img-bspf-selected:hover {
+    -webkit-box-shadow: 0 2px 5px rgba(43, 43, 202, 0.85);
+    -moz-box-shadow: 0 2px 5px rgba(43, 43, 202, 0.85);
+    box-shadow: 0 2px 5px rgba(43, 43, 202, 0.85);
+}
+
+.img-desc {
+    text-align: center;
+    padding-top: 10px;
+    color: #888;
+}
+
+.img-desc .fa {
+    font-size: 24px;
+}
+
+.bspf-votes-msg {
+    display: none;
+}
+
+.fa-star {
+    color: #FFBE0A;
+}
+
+.star-bspf, .star-bspf-pub {
+    cursor: pointer;
+}
+
+.modal-body .fa {
+    font-size: 24px;
+}

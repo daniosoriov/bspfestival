@@ -11,6 +11,15 @@
 
 add_filter('gform_register_init_scripts', 'gform_my_function');
 function gform_my_function($form) {
+  
+  /*
+  $uti = new BSPFCouponClass();
+  $uti->isValidCoupon('test');
+  $uti->isValidCoupon('BSPFTPAAD');
+  $uti->isValidCoupon('BSPFTPAJF');
+  $uti->isValidCoupon('BSPFTPARS');
+  */
+  
   $script = '
   (function($){
     $("li.gf_readonly input").attr("readonly","readonly");
@@ -83,6 +92,43 @@ function gform_my_function($form) {
       });*/
       
     }
+    
+    jQuery(document).bind(\'gform_page_loaded\', function(event, formId, current_page) {
+      //console.log(\'Inside NEW gform_page_loaded with current_page: \'+ current_page);
+      
+      if (formId == 1 && current_page == 4) {
+        var coupon = jQuery(\'#input_1_37\').val();
+        var coupons = ["BSPFTPAAD", "BSPFTPAJF", "BSPFTPARS"];
+        
+        //console.log("coupons: "+ coupons);
+        //console.log("coupon submitted: "+ coupon);
+        
+        var validCoupon = false;
+        var length = coupons.length;
+        for (var i = 0; i < length; i++) {
+          if (coupons[i] == coupon) {
+            validCoupon = true;
+            continue;
+          }
+        }
+        
+        var photosSubmitted = jQuery("#input_1_31").val();
+        var price = ((photosSubmitted <= 5) ? 18 : 15) * photosSubmitted;
+        if (validCoupon) {
+          //console.log("photos submitted: "+ photosSubmitted);
+          price = 0;
+          if (photosSubmitted == 4 || photosSubmitted == 5) {
+            price = (photosSubmitted * 18) - (3 * 18);
+          }
+          else if (photosSubmitted > 5) {
+            price = (photosSubmitted * 15) - (3 * 15);
+          }
+          //console.log("new price is: "+ price);
+        }
+        jQuery("#input_1_27").val(price).change();
+      }
+      
+    });
     
   })(jQuery);
   ';
