@@ -113,14 +113,7 @@ class BSPFPluginClass {
 			$image_data = $this->BSPFLoadSinglePhoto( $pid );
 			$content    .= $this->BSPFLoadSinglePhotoLayout( $image_data );
 		}
-
-		$content .= '<h2 class="text-center">' . $type . ' voting - ' . str_replace( [
-			'_',
-			'int',
-			'bru',
-			'sin',
-			'ser'
-		  ], [ ' ', 'international', 'brussels', 'singles', 'series' ], $category ) . '</h2>';
+		// Load the gallery to vote.
 		$content .= $this->BSPFLoadPhotos( $category, $type );
 
 		return $content;
@@ -349,12 +342,12 @@ class BSPFPluginClass {
 
 		// Take the 5 most voted photos
 		$query  = "
-            SELECT p.pid, p.filename, COUNT(p.pid) as votes 
-            FROM {$wpdb->prefix}ngg_pictures p 
-            INNER JOIN {$wpdb->prefix}bspf_votes b ON p.pid = b.pid 
+            SELECT p.pid, p.filename, COUNT(*) as votes 
+            FROM {$wpdb->prefix}bspf_votes b 
+            INNER JOIN {$wpdb->prefix}ngg_pictures p ON p.pid = b.pid 
             WHERE galleryid = %d
-            GROUP BY p.pid
-            ORDER BY votes
+            GROUP BY b.pid
+            ORDER BY votes DESC
             LIMIT 5
         ";
 		$result = $wpdb->get_results( $wpdb->prepare( $query, $gid ) );

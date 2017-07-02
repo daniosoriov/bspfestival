@@ -207,10 +207,6 @@ jQuery(document).ready(function ($) {
         }
     }
 
-    function castVote(this2) {
-
-    }
-
     function updateVotes() {
         // Update the votes made while using lightGallery.
         $('#myModal').modal('show');
