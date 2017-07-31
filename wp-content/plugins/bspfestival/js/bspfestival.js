@@ -33,7 +33,7 @@ jQuery(document).ready(function ($) {
 
     $gallery.on('onAfterAppendSubHtml.lg', function (event, index) {
         // Check the photo voting status.
-        var star = $('.lg-sub-html').find('.star-bspf-pub');
+        var star = $('.lg-sub-html').find('.star-bspf-public');
         $(star).removeClass('fa-star fa-star-o').addClass('fa-spinner fa-spin');
         if (!$(star).hasClass('checked')) {
             var data = {
@@ -53,36 +53,15 @@ jQuery(document).ready(function ($) {
         }
 
         // Allow people to vote from the lightGallery.
-        $(".star-bspf-pub").click(function () {
-            if ($(this).hasClass('fa-spinner')) return;
-            var this2 = this;
-            var data = {
-                _ajax_nonce: bspf_ajax.nonce,
-                action: 'BSPFAjaxVoting',
-                pid: $(this).attr('data-pid'),
-                favorite: $(this).hasClass('fa-star-o'),
-            }
-
-            $(this).removeClass('fa-star fa-star-o').addClass('fa-spinner fa-spin');
-
-            $.post(bspf_ajax.ajax_url, data, function (response) {
-                // If making it favorite
-                if (response.favorite == 'true') {
-                    $(this2).removeClass('fa-spinner fa-spin').addClass('fa-star').attr('title', 'Favorite!');
-                }
-                else if (response.favorite == 'false') {
-                    $(this2).removeClass('fa-spinner fa-spin').addClass('fa-star-o').attr('title', 'Make favorite!');
-                }
-                // Change the star.
-            }, "json").fail(function () {
-                $(this2).parent().prepend('<span class="text-danger">[01] Error!</span>');
-            }, "json");
+        $(".star-bspf-public").click(function () {
+            var vote = ($(this).hasClass('fa-star-o')) ? 5 : 0;
+            votePid($(this), $(this).attr('data-pid'), vote, 'public');
         });
     });
 
     // Events once each photo is loaded.
     $gallery.on('onSlideItemLoad.lg', function (event, index) {
-        var star = $('.lg-sub-html').find('.star-bspf-pub');
+        var star = $('.lg-sub-html').find('.star-bspf-public');
         // Change the Facebook sharing URL.
         // Facebook tool to create URLs: https://apps.lazza.dk/facebook/
         var facebookURL = 'https://www.facebook.com/sharer/sharer.php?' +
@@ -119,30 +98,35 @@ jQuery(document).ready(function ($) {
         $(this).removeClass("fa-star-o").addClass("selected fa-star").delay(500).queue(function () {
             $(this).removeClass("selected fa-star").addClass("fa-star-o").dequeue();
         });
-        var vote = $(this).parent().attr("class");
+        var vote_num = getVoteNumber($(this).parent().attr("class"));
         $(".img-bspf-selected").each(function (index) {
             $(this).parent().find("ul").children().each(function (index) {
-                assignVote($(this).children(), index, vote);
+                updateVoteStars($(this).children(), index, vote_num);
             });
         });
         ;
     });
 
-    $(".star-bspf").click(function () {
+    $(".star-bspf-private").click(function () {
         var vote = $(this).parent().attr("class");
+        var vote_num = getVoteNumber(vote);
         var last_vote = $(this).parent().parent().find(".fa-star:last").parent().attr("class");
+        var pid = $(this).parent().parent().attr('data-pid');
+        // Assigning a vote, change the stars.
         if (vote != last_vote) {
             $(this).addClass("fa-star").removeClass("fa-star-o");
             $(this).parent().parent().children().each(function (index) {
-                assignVote($(this).children(), index, vote);
+                updateVoteStars($(this).children(), index, vote_num);
             });
         }
-        // If deselecting, remove vote.
+        // If deselecting the star, so removing the vote.
         else if (vote == last_vote) {
             $(this).parent().parent().children().each(function (index) {
-                $(this).children().addClass("fa-star-o").removeClass("fa-star");
+                $(this).children().addClass("fa-star-o").removeClass("fa-star").attr('title', 'Vote ' + (index + 1));
             });
+            vote_num = 0;
         }
+        votePid($(this), pid, vote_num, 'private');
     });
 
     // Scale slider system in bootstrap & js: http://seiyria.com/bootstrap-slider/
@@ -171,30 +155,9 @@ jQuery(document).ready(function ($) {
      console.log("Request failed: " + textStatus);
      });*/
 
-    $(".star-bspf-pub").click(function () {
-        if ($(this).hasClass('fa-spinner')) return;
-        var this2 = this;
-        var data = {
-            _ajax_nonce: bspf_ajax.nonce,
-            action: 'BSPFAjaxVoting',
-            pid: $(this).attr('data-pid'),
-            favorite: $(this).hasClass('fa-star-o'),
-        }
-
-        $(this).removeClass('fa-star fa-star-o').addClass('fa-spinner fa-spin');
-
-        $.post(bspf_ajax.ajax_url, data, function (response) {
-            // If making it favorite
-            if (response.favorite == 'true') {
-                $(this2).removeClass('fa-spinner fa-spin').addClass('fa-star').attr('title', 'Favorite!');
-            }
-            else if (response.favorite == 'false') {
-                $(this2).removeClass('fa-spinner fa-spin').addClass('fa-star-o').attr('title', 'Make favorite!');
-            }
-            // Change the star.
-        }, "json").fail(function () {
-            $(this2).parent().prepend('<span class="text-danger">[01] Error!</span>');
-        }, "json");
+    $(".star-bspf-public").click(function () {
+        var vote = ($(this).hasClass('fa-star-o')) ? 5 : 0;
+        votePid($(this), $(this).attr('data-pid'), vote, 'public');
     });
 
     $('.facebook-share').on('click', function () {
@@ -210,13 +173,50 @@ jQuery(document).ready(function ($) {
         });
     }
 
-    function assignVote(element, index, vote) {
-        var obj = {one: 1, two: 2, three: 3, four: 4, five: 5};
-        if ((index + 1) <= obj[vote]) {
-            element.addClass("fa-star").removeClass("fa-star-o");
+    /**
+     * Vote on a picture.
+     * @param element mixed the element that triggered the event, an icon.
+     * @param pid integer the pid of the picture.
+     * @param vote integer the vote for the picture.
+     * @param type string public or private.
+     */
+    function votePid(element, pid, vote, type) {
+        if (element.hasClass('fa-spinner')) return;
+        var data = {
+            _ajax_nonce: bspf_ajax.nonce,
+            action: 'BSPFAjaxVoting',
+            pid: pid,
+            vote: vote,
         }
-        else {
-            element.addClass("fa-star-o").removeClass("fa-star");
+        console.log(data);
+        element.removeClass('fa-star fa-star-o').addClass('fa-spinner fa-spin');
+        $.post(bspf_ajax.ajax_url, data, function (response) {
+            console.log(response);
+            if (response) {
+                if (vote > 0) {
+                    var title = (type == 'public') ? 'Favorite!' : 'Remove vote';
+                    element.removeClass('fa-spinner fa-spin').addClass('fa-star').attr('title', title);
+                }
+                else {
+                    var title = (type == 'public') ? 'Make favorite!' : 'Vote ' + vote;
+                    element.removeClass('fa-spinner fa-spin').addClass('fa-star-o').attr('title', title);
+                }
+            }
+        }, "json");
+    }
+
+    function getVoteNumber(vote) {
+        var obj = {one: 1, two: 2, three: 3, four: 4, five: 5};
+        return obj[vote];
+    }
+
+    function updateVoteStars(element, index, vote) {
+        element.addClass("fa-star-o").removeClass("fa-star").attr('title', 'Vote ' + (index + 1));
+        if ((index + 1) <= vote) {
+            element.addClass("fa-star").removeClass("fa-star-o");
+            if ((index + 1) == vote) {
+                element.attr('title', 'Remove vote');
+            }
         }
     }
 
@@ -228,9 +228,9 @@ jQuery(document).ready(function ($) {
             action: 'BSPFAjaxGetVote',
         }
         $.get(bspf_ajax.ajax_url, data, function (response) {
-            $('.star-bspf-pub').removeClass('fa-star').addClass('fa-star-o').attr('title', 'Make favorite!');
+            $('.star-bspf-public').removeClass('fa-star').addClass('fa-star-o').attr('title', 'Make favorite!');
             for (var count in response.voted) {
-                $(".star-bspf-pub[data-pid='" + response.voted[count] + "']").removeClass('fa-star-o').addClass('fa-star').attr('title', 'Favorite!');
+                $(".star-bspf-public[data-pid='" + response.voted[count] + "']").removeClass('fa-star-o').addClass('fa-star').attr('title', 'Favorite!');
             }
             $('#myModal').modal('hide');
         }, "json");

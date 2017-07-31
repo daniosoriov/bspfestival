@@ -101,9 +101,11 @@ class BSPFPluginClass {
 	function BSPFShortcode( $atts = [], $content = null, $tag = '' ) {
 		$content  = '';
 		$atts     = shortcode_atts( [
+		  'gid'      => 0,
 		  'category' => 'int_sin',
 		  'type'     => 'public',
 		], $atts, $tag );
+		$gid      = $atts['gid'];
 		$category = $atts['category'];
 		$type     = $atts['type'];
 
@@ -114,7 +116,7 @@ class BSPFPluginClass {
 			$content    .= $this->BSPFLoadSinglePhotoLayout( $image_data );
 		}
 		// Load the gallery to vote.
-		$content .= $this->BSPFLoadPhotos( $category, $type );
+		$content .= $this->BSPFLoadPhotos( $gid, $category, $type );
 
 		return $content;
 	}
@@ -160,7 +162,7 @@ class BSPFPluginClass {
 		$is_voted = in_array( $data->pid, $voted );
 		$star     = ( $is_voted ) ? 'fa-star' : 'fa-star-o';
 		$title    = ( $is_voted ) ? 'Favorite!' : 'Make favorite!';
-		$icon     = '<i class="fa ' . $star . ' star-bspf-pub" title="' . $title . '" data-pid="' . $data->pid . '" ></i>';
+		$icon     = '<i class="fa ' . $star . ' star-bspf-public" title="' . $title . '" data-pid="' . $data->pid . '" ></i>';
 		$vote_url = get_site_url() . $_SERVER['REQUEST_URI'];
 
 		$facebook_URL = 'https://www.facebook.com/sharer/sharer.php?u=' . urlencode( $vote_url ) . '&picture=' . urlencode( $data->img_src ) . '&title=' . urlencode( $data->photo_name . ' - BSPF Social Media Voting' ) . '&caption=' . urlencode( 'www.bspfestival.org' ) . '&description=' . urlencode( 'Brussels Street Photography Festival contest submission entry. Vote on your favorite photo and help the photographer win the Social Media Prize.' );
@@ -197,27 +199,42 @@ class BSPFPluginClass {
 	/**
 	 * Creates the HTML to display the photos for the short code.
 	 *
+	 * @param int $gid the id of the gallery.
 	 * @param string $category categories: int_sin, int_ser, bru_sin, bru_ser.
 	 * @param string $type public or private.
 	 *
 	 * @return string the content of the page.
 	 */
-	function BSPFLoadPhotos( $category = 'int_sin', $type = 'public' ) {
-		$gid = 0;
-		switch ( $category ) {
-			case 'int_sin':
-				$gid = 230;
-				break;
+	function BSPFLoadPhotos( $gid = 0, $category = 'int_sin', $type = 'public' ) {
+		$user = wp_get_current_user();
+		if ( $type == 'private' && ( !$user || !is_user_logged_in() ) ) {
+			return '<p>&nbsp;</p><p class="center">You must be <a href="' . wp_login_url( get_permalink() ) . '">logged in</a> to access this page.</p>';
+		}
+		$title = str_replace( [ 'int', 'bru', 'sin', 'ser', '_' ], [
+		  'International',
+		  'Brussels',
+		  'Singles',
+		  'Series',
+		  ' '
+		], $category );
+		if ( $category ) {
+			switch ( $category ) {
+				case 'int_sin':
+					$gid = 230;
+					break;
 
-			case 'bru_sin':
-				$gid = 231;
-				break;
+				case 'bru_sin':
+					$gid = 231;
+					break;
+			}
+		}
+		if ( !$gid ) {
+			return '';
 		}
 		$page_url = get_permalink();
 		$path     = get_site_url() . '/' . $this->BSPFGetGalleryPath( $gid );
-		$images   = $this->BSPFGetImages( $gid );
+		$images   = $this->BSPFGetImages( $gid, $type );
 		$uti      = new BSPFUtilitiesClass();
-		$voted    = $uti->getVotesByIP();
 		$content  = '';
 
 		/*$request = new WP_REST_Request( 'DELETE', '/bspfestival/v1/image/5406' );
@@ -228,7 +245,9 @@ class BSPFPluginClass {
 		*/
 
 		// Use Facebook SDK for sharing photos.
-		$content .= '
+		if ( $type == 'public' ) {
+			$voted   = $uti->getVotesByIP();
+			$content .= '
 		    <script>
               window.fbAsyncInit = function() {
                 FB.init({
@@ -248,11 +267,48 @@ class BSPFPluginClass {
                  fjs.parentNode.insertBefore(js, fjs);
                }(document, \'script\', \'facebook-jssdk\'));
             </script>
-		';
+		    ';
+			$content .= '
+                <div class="modal fade" id="myModal" role="dialog">
+                    <div class="modal-dialog modal-sm">
+                        <div class="modal-content">
+                            <div class="modal-body center">
+                                <p>Updating your favorites...</p>
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ';
+			$content .= '<div class="bspf-gallery-wrapper">';
+			$content .= '<div class="col-sm-1"></div>';
+			$content .= '<div class="col-sm-10" id="grid" data-columns>';
+		}
+
+		/**
+		 * TODO curators:
+		 *
+		 * - Change the size of the photos, single column, 2 columns, 3 columns.
+		 * - Select and deselect photos and rate them.
+		 * - Load only batches of 50 photos.
+		 * - Button: load new photos.
+		 * - Flag photo, for example it doesn't match the criteria.
+		 * - If a photo is flagged, other should see that is flagged.
+		 * - Filter the 50 photos by:
+		 *      - Voted/not voted
+		 *      - Rating (1 to 5)
+		 *
+		 */
 
 		// Toolbar only for curators.
 		if ( $type == 'private' ) {
+			$voted   = $uti->getVotesByUserId( $user->ID );
 			$content .= '
+            <h2 class="center">Curator gallery</h2>
+            <h3 class="center">' . $title . '</h3>
+            <h4 class="center">Welcome ' . $user->display_name . '</h4>
+            <p>How to vote:</p>
+            <p>This is a description on how to vote...</p>
             <div class="bspf-toolbar">
                 <ul class="list-inline">
                     <li>Selected photos: <span class="selected-photos"></span></li>
@@ -269,85 +325,79 @@ class BSPFPluginClass {
                 </ul>
             </div>
             ';
+			$content .= '<div class="bspf-gallery-wrapper-private">';
+			$content .= '<div class="col-sm-1"></div>';
+			$content .= '<div class="col-sm-10">';
 		}
 
-		$content .= '
-            <div class="modal fade" id="myModal" role="dialog">
-                <div class="modal-dialog modal-sm">
-                    <div class="modal-content">
-                        <div class="modal-body center">
-                            <p>Updating your favorites...</p>
-                            <i class="fa fa-spinner fa-spin"></i>
+		foreach ( $images as $pid => $img ) {
+			$img_src = $path . '/' . $img['filename'];
+			if ( $type == 'public' ) {
+				$vote_url   = $page_url . '?pid=' . $pid;
+				$photo_name = $img['name'];
+				$share_text = "BSPF: Vote for $photo_name!";
+
+				// Favorite a photo.
+				$is_voted = in_array( $pid, $voted );
+				$star     = ( $is_voted ) ? 'fa-star' : 'fa-star-o';
+				$title    = ( $is_voted ) ? 'Favorite!' : 'Make favorite!';
+				$icon     = '
+                    <i class=\'fa ' . $star . ' star-bspf-public\' 
+                        aria-hidden=\'true\' 
+                        title=\'' . $title . '\' 
+                        data-pid=\'' . $pid . '\' 
+                        data-url=\'' . $vote_url . '\'
+                        data-name=\'' . $photo_name . '\'></i>
+                        ';
+
+				//$facebook_URL = 'https://www.facebook.com/sharer/sharer.php?u=' . urlencode( $vote_url ) . '&picture=' . urlencode( $img_src ) . '&title=' . urlencode( $photo_name . ' - BSPF Social Media Voting' ) . '&caption=' . urlencode( 'www.bspfestival.org' ) . '&description=' . urlencode( 'Brussels Street Photography Festival contest submission entry. Vote on your favorite photo and help the photographer win the Social Media Prize.' );
+				$twitter_URL = 'https://twitter.com/intent/tweet?text=Vote for ' . $photo_name . ' on the BSPF Contest!&url=' . urlencode( $vote_url ) . '&hashtags=StreetPhotography,BSPF2017&via=BSPFestival_Off';
+
+				$facebook = '<i class=\'fa fa-facebook fa-bspf-social-white facebook-share\' data-url=\'' . $vote_url . '\' title=\'Share on Facebook!\'></i>';
+				$twitter  = '<a href=\'' . $twitter_URL . '\' target=\'_blank\'><i class=\'fa fa-twitter fa-bspf-social-white\' title=\'Share on Twitter!\'></i></a>';
+				$share    = '<a href=\'' . $vote_url . '\' target=\'_blank\'><i class=\'fa fa-link fa-bspf-social-white\' title=\'Get sharing link\'></i></a>';
+
+				$content .= '
+                    <div class="grid-item-public">
+                        <div class="img-wrapper" 
+                            data-src="' . $img_src . '" 
+                            data-sub-html="<p>' . $photo_name . '</p><p>' . $icon . '</p><p>' . $facebook . $twitter . $share . '</p>"
+    
+                            data-pinterest-text="' . $share_text . '" 
+                            data-tweet-text="' . $share_text . '"
+                            data-facebook-text="' . $share_text . '"
+                            >
+                            <img class="img-bspf" 
+                                src="' . $img_src . '" title="' . $photo_name . '" alt="' . $photo_name . '">
+                        </div>
+                        <div class="img-desc">
+                            <ul class="bspf-vote-wrapper">
+                                <li>' . $photo_name . '</li>
+                                <li>' . $icon . '</li>
+                                <li>' . $facebook . $twitter . $share . '</li>
+                            </ul>
                         </div>
                     </div>
-                </div>
-            </div>
-        ';
-		$content .= '<div class="bspf-gallery-wrapper">';
-		$content .= '<div class="col-sm-1"></div>';
-		$content .= '<div class="col-sm-10" id="grid" data-columns>';
-
-		foreach ( $images as $pid => $img ) {
-			$vote_url   = $page_url . '?pid=' . $pid;
-			$img_src    = $path . '/' . $img['filename'];
-			$photo_name = $img['name'];
-			$share_text = "BSPF: Vote for $photo_name!";
-
-			// Favorite a photo.
-			$is_voted = in_array( $pid, $voted );
-			$star     = ( $is_voted ) ? 'fa-star' : 'fa-star-o';
-			$title    = ( $is_voted ) ? 'Favorite!' : 'Make favorite!';
-			$icon     = '
-			    <i class=\'fa ' . $star . ' star-bspf-pub\' 
-                    aria-hidden=\'true\' 
-                    title=\'' . $title . '\' 
-                    data-pid=\'' . $pid . '\' 
-                    data-url=\'' . $vote_url . '\'
-                    data-name=\'' . $photo_name . '\'></i>
-                    ';
-
-			//$facebook_URL = 'https://www.facebook.com/sharer/sharer.php?u=' . urlencode( $vote_url ) . '&picture=' . urlencode( $img_src ) . '&title=' . urlencode( $photo_name . ' - BSPF Social Media Voting' ) . '&caption=' . urlencode( 'www.bspfestival.org' ) . '&description=' . urlencode( 'Brussels Street Photography Festival contest submission entry. Vote on your favorite photo and help the photographer win the Social Media Prize.' );
-			$twitter_URL = 'https://twitter.com/intent/tweet?text=Vote for ' . $photo_name . ' on the BSPF Contest!&url=' . urlencode( $vote_url ) . '&hashtags=StreetPhotography,BSPF2017&via=BSPFestival_Off';
-
-			$facebook = '<i class=\'fa fa-facebook fa-bspf-social-white facebook-share\' data-url=\'' . $vote_url . '\' title=\'Share on Facebook!\'></i>';
-			$twitter  = '<a href=\'' . $twitter_URL . '\' target=\'_blank\'><i class=\'fa fa-twitter fa-bspf-social-white\' title=\'Share on Twitter!\'></i></a>';
-			$share    = '<a href=\'' . $vote_url . '\' target=\'_blank\'><i class=\'fa fa-link fa-bspf-social-white\' title=\'Get sharing link\'></i></a>';
-
-			$content .= '
-                <div class="grid-item">
-                    <div class="img-wrapper" 
-                        data-src="' . $img_src . '" 
-                        data-sub-html="<p>' . $photo_name . '</p><p>' . $icon . '</p><p>' . $facebook . $twitter . $share . '</p>"
-
-                        data-pinterest-text="' . $share_text . '" 
-                        data-tweet-text="' . $share_text . '"
-                        data-facebook-text="' . $share_text . '"
-                        >
-                        <img class="img-bspf img-bspf-' . $type . '" 
-                            src="' . $img_src . '" title="' . $photo_name . '" alt="' . $photo_name . '">
-                    </div>
-                <div class="img-desc">
-            ';
-			if ( $type == 'public' ) {
-				$content .= '
-                    <ul class="bspf-vote-wrapper">
-                        <li>' . $photo_name . '</li>
-                        <li>' . $icon . '</li>
-                        <li>' . $facebook . $twitter . $share . '</li>
-                    </ul>
                 ';
 			} else {
+				$vote    = ( in_array( $pid, $voted ) ) ? $voted[ $pid ] : 0;
 				$content .= '
-                    <ul class="list-inline">
-                        <li class="one"><i class="fa fa-star-o star-bspf" aria-hidden="true"></i></li>
-                        <li class="two"><i class="fa fa-star-o star-bspf" aria-hidden="true"></i></li>
-                        <li class="three"><i class="fa fa-star-o star-bspf" aria-hidden="true"></i></li>
-                        <li class="four"><i class="fa fa-star-o star-bspf" aria-hidden="true"></i></li>
-                        <li class="five"><i class="fa fa-star-o star-bspf" aria-hidden="true"></i></li>
-                    </ul>
+                    <div class="grid-item-private">
+                        <div class="img-wrapper">
+                            <img class="img-bspf img-bspf-private" src="' . $img_src . '">
+                        </div>
+                        <div class="img-desc">
+                            <ul class="list-inline" data-pid="' . $pid . '">
+                                <li class="one"><i class="fa ' . ( ( $vote >= 1 ) ? 'fa-star' : 'fa-star-o' ) . ' star-bspf-private" title="Vote 1" aria-hidden="true"></i></li>
+                                <li class="two"><i class="fa ' . ( ( $vote >= 2 ) ? 'fa-star' : 'fa-star-o' ) . ' star-bspf-private" title="Vote 2" aria-hidden="true"></i></li>
+                                <li class="three"><i class="fa ' . ( ( $vote >= 3 ) ? 'fa-star' : 'fa-star-o' ) . ' star-bspf-private" title="Vote 3" aria-hidden="true"></i></li>
+                                <li class="four"><i class="fa ' . ( ( $vote >= 4 ) ? 'fa-star' : 'fa-star-o' ) . ' star-bspf-private" title="Vote 4" aria-hidden="true"></i></li>
+                                <li class="five"><i class="fa ' . ( ( $vote >= 5 ) ? 'fa-star' : 'fa-star-o' ) . ' star-bspf-private" title="Vote 5" aria-hidden="true"></i></li>
+                            </ul>
+                        </div>
+                    </div>
                 ';
 			}
-			$content .= '</div></div>';
 		}
 		$content .= '</div>';
 		$content .= '<div class="col-sm-1"></div>';
@@ -372,16 +422,39 @@ class BSPFPluginClass {
 	}
 
 	/**
-	 * Gets the photos to display in the voting gallery. Will return a maximum of 45 photos: 5 the most voted so far,
-	 * 20 random photos and 20 which have not been voted at all.
+	 * Gets the photos to display in the voting gallery. For $type public it will return a maximum of 45 photos: 5 the
+	 * most voted so far, 20 random photos and 20 which have not been voted at all.
 	 *
 	 * @param integer $gid the id of the gallery to fetch.
+	 * @param string $type public or private.
 	 *
 	 * @return array the associative array with the photos to display.
 	 */
-	function BSPFGetImages( $gid ) {
+	function BSPFGetImages( $gid, $type ) {
 		global $wpdb;
 
+		// If private, select all photos available.
+		if ( $type == 'private' ) {
+			$query  = "
+		        SELECT pid, filename
+                FROM {$wpdb->prefix}ngg_pictures 
+                WHERE galleryid = %d
+                ORDER BY rand()
+                LIMIT 50
+		    ";
+			$result = $wpdb->get_results( $wpdb->prepare( $query, $gid ) );
+			foreach ( $result as $data ) {
+				$images[ $data->pid ] = [
+				  'filename' => $data->filename,
+				  'name'     => '',
+				];
+			}
+
+			return $images;
+
+		}
+
+		// If public, select only 45 photos.
 		// Take the 5 most voted photos
 		$query  = "
             SELECT p.pid, p.filename, COUNT(*) as votes 
@@ -468,7 +541,8 @@ class BSPFPluginClass {
 		wp_register_style( 'bspfestival-stylesheet', plugins_url( 'css/bspfestival.css', __FILE__ ) );
 		wp_register_style( 'bspfestival-stylesheet-general', plugins_url( 'css/bspfgeneral.css', __FILE__ ) );
 		// Register the script
-		wp_register_script( 'bspfestival-js', plugins_url( 'js/bspfestival.min.js', __FILE__ ), [] );
+		//wp_register_script( 'bspfestival-js', plugins_url( 'js/bspfestival.min.js', __FILE__ ), [] );
+		wp_register_script( 'bspfestival-js', plugins_url( 'js/bspfestival.js', __FILE__ ), [] );
 
 		// LightGallery
 		wp_register_style( 'lightgallery-css', 'https://cdn.jsdelivr.net/lightgallery/1.3.9/css/lightgallery.min.css', [], '1.3.9' );
@@ -546,12 +620,11 @@ class BSPFPluginClass {
 			global $wpdb;
 			$user     = wp_get_current_user();
 			$user_id  = ( $user ) ? $user->ID : 'NULL';
-			$vote     = ( $_POST['vote'] ) ? $_POST['vote'] : 5;
+			$vote     = ( $_POST['vote'] ) ? (integer) $_POST['vote'] : 0;
 			$pid      = (integer) $_POST['pid'];
-			$favorite = $_POST['favorite'];
 
 			// Check that is a valid integer.
-			if ( !is_integer( $pid ) && $pid > 0 ) {
+			if ( !is_integer( $pid ) || $pid <= 0 ) {
 				echo json_encode( [ 'status' => 'warning', 'message' => 'Invalid pid [01]!' ] );
 				wp_die(); // stop executing script
 			}
@@ -562,9 +635,15 @@ class BSPFPluginClass {
 				echo json_encode( [ 'status' => 'warning', 'message' => 'Invalid pid [02]!' ] );
 				wp_die(); // stop executing script
 			}
+			// Check that the vote is a valid integer from 0 to 5.
+			if ( !is_integer( $vote ) || ( $vote < 0 || $vote > 5 ) ) {
+				echo json_encode( [ 'status' => 'warning', 'message' => 'Invalid vote [03]!' ] );
+				wp_die(); // stop executing script
+			}
+
 
 			// If making it favorite.
-			if ( $favorite == 'true' ) {
+			if ( $vote > 0 ) {
 				// Insert information on db.
 				$query = "
                     INSERT INTO {$wpdb->prefix}bspf_votes 
@@ -574,17 +653,17 @@ class BSPFPluginClass {
                 ";
 				$query = $wpdb->prepare( $query, $_SERVER['REMOTE_ADDR'], $pid, $vote, $user_id, $vote );
 				$wpdb->query( $query );
-			} elseif ( $favorite == 'false' ) {
+			} elseif ( $vote == 0 ) {
 				// Delete information from db.
 				$query = "DELETE FROM {$wpdb->prefix}bspf_votes WHERE ip = '%s' AND pid = %d AND user_id = %d";
 				$query = $wpdb->prepare( $query, $_SERVER['REMOTE_ADDR'], $pid, $user_id );
 				$wpdb->query( $query );
 			} else {
-				echo json_encode( [ 'status' => 'warning', 'message' => 'Something went wrong [03]!' ] );
+				echo json_encode( [ 'status' => 'warning', 'message' => 'Something went wrong [04]!' ] );
 				wp_die(); // stop executing script
 			}
 
-			echo json_encode( [ 'status' => 'success', 'favorite' => $favorite ] );
+			echo json_encode( [ 'status' => 'success' ] );
 		} else {
 			echo json_encode( [ 'status' => 'error', 'message' => 'Invalid request!' ] );
 		}
@@ -741,10 +820,27 @@ class BSPFUtilitiesClass {
 	 */
 	public function getVotesByIP() {
 		global $wpdb;
-		$query  = "SELECT pid FROM {$wpdb->prefix}bspf_votes WHERE ip = '%s'";
-		$result = $wpdb->get_col( $wpdb->prepare( $query, $_SERVER['REMOTE_ADDR'] ) );
+		$query = "SELECT pid FROM {$wpdb->prefix}bspf_votes WHERE ip = '%s'";
 
-		return $result;
+		return $wpdb->get_col( $wpdb->prepare( $query, $_SERVER['REMOTE_ADDR'] ) );
+	}
+
+	/**
+	 * Get the votes from a specific user.
+	 *
+	 * @param $user_id int the id of the user.
+	 *
+	 * @return array an associative array with the pids and their votes.
+	 */
+	public function getVotesByUserId( $user_id ) {
+		global $wpdb;
+		$query  = "SELECT pid, vote FROM {$wpdb->prefix}bspf_votes WHERE user_id = %d";
+		$result = $wpdb->get_results( $wpdb->prepare( $query, $user_id ) );
+		foreach ( $result as $data ) {
+			$votes[ $data->pid ] = $data->vote;
+		}
+
+		return $votes;
 	}
 
 	/**

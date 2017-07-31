@@ -27,6 +27,7 @@
     color: #555;
     padding: 0 6px;
 }
+
 .fa-bspf-social-white {
     cursor: pointer;
     font-size: 14px !important;
@@ -80,6 +81,10 @@
     background: #222;
 }
 
+#grid-private {
+    margin: 0 auto;
+}
+
 @media screen and (max-width: 480px) {
     #grid[data-columns]::before {
         content: '1 .column.size-1of1';
@@ -126,43 +131,18 @@
     width: 25%;
 }
 
-.grid-item {
+.grid-item-public {
     padding: 2px 2px 15px;
     border: 1px solid #333;
     margin-bottom: 10px;
     border-radius: 2px;
 }
 
-/* clear fix */
-/*
-.grid:after {
-  content: '';
-  display: block;
-  clear: both;
+.grid-item-private {
+    padding: 0;
+    border: 0;
+    margin-bottom: 35px;
 }
-
-/* 3 columns by default */
-/*
-.grid-sizer, .grid-item { width: 32%; }
-.gutter-sizer { width: 2%; }
-.grid-item {
-  float: left;
-  margin-bottom: 15px;
-}
-
-@media screen and (min-width: 768px) {
-  /* 4 columns for larger screens */
-/*
-  .grid-sizer, .grid-item { width: 23.875%; }
-  .gutter-sizer { width: 1.5%; }
-}
-@media screen and (min-width: 1024px) {
-  /* 5 columns for larger screens */
-/*
-  .grid-sizer, .grid-item { width: 19.2%; }
-  .gutter-sizer { width: 1%; }
-}
-*/
 
 .img-bspf {
     display: block !important;
@@ -177,6 +157,7 @@
 }
 
 .img-bspf-private {
+    margin: 0 auto;
     cursor: pointer;
 }
 
@@ -216,7 +197,7 @@
     color: #FFBE0A;
 }
 
-.star-bspf, .star-bspf-pub {
+.star-bspf-private, .star-bspf-public {
     cursor: pointer;
 }
 
