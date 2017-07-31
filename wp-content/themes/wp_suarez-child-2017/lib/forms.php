@@ -98,7 +98,8 @@ function gform_my_function($form) {
       
       if (formId == 1 && current_page == 4) {
         var coupon = jQuery(\'#input_1_37\').val();
-        var coupons = ["BSPFTPAAD", "BSPFTPAJF", "BSPFTPARS"];
+        //var coupons = ["BSPFTPAAD", "BSPFTPAJF", "BSPFTPARS"];
+        var coupons = ["BSPFTPALOU", "BSPFTPAREX", "BSPFTPANIS"];
         
         //console.log("coupons: "+ coupons);
         //console.log("coupon submitted: "+ coupon);

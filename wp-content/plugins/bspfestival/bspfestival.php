@@ -161,7 +161,16 @@ class BSPFPluginClass {
 		$star     = ( $is_voted ) ? 'fa-star' : 'fa-star-o';
 		$title    = ( $is_voted ) ? 'Favorite!' : 'Make favorite!';
 		$icon     = '<i class="fa ' . $star . ' star-bspf-pub" title="' . $title . '" data-pid="' . $data->pid . '" ></i>';
-		$content  = '
+		$vote_url = get_site_url() . $_SERVER['REQUEST_URI'];
+
+		$facebook_URL = 'https://www.facebook.com/sharer/sharer.php?u=' . urlencode( $vote_url ) . '&picture=' . urlencode( $data->img_src ) . '&title=' . urlencode( $data->photo_name . ' - BSPF Social Media Voting' ) . '&caption=' . urlencode( 'www.bspfestival.org' ) . '&description=' . urlencode( 'Brussels Street Photography Festival contest submission entry. Vote on your favorite photo and help the photographer win the Social Media Prize.' );
+		$twitter_URL  = 'https://twitter.com/intent/tweet?text=Vote for ' . $data->photo_name . ' on the BSPF Contest!&url=' . urlencode( $vote_url ) . '&hashtags=StreetPhotography,BSPF2017&via=BSPFestival_Off';
+
+		$facebook = '<a href="' . $facebook_URL . '" target="_blank"><i class="fa fa-facebook fa-bspf-social" title="Share on Facebook!"></i></a>';
+		$twitter  = '<a href="' . $twitter_URL . '" target="_blank"><i class="fa fa-twitter fa-bspf-social" title="Share on Twitter!"></i></a>';
+		$share    = '<a href="' . $vote_url . '" target="_blank"><i class="fa fa-link fa-bspf-social" title="Get sharing link"></i></a>';
+
+		$content = '
             <div class="modal fade" id="ModalImage" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
                 <div class="modal-dialog">
                     <div class="modal-content"> 
@@ -174,6 +183,7 @@ class BSPFPluginClass {
                             <ul class="bspf-vote-wrapper">
                                 <li>' . $data->photo_name . '</li>
                                 <li>' . $icon . '</li>
+                                <li>' . $facebook . $twitter . $share . '</li>
                             </ul>
                         </div>
                     </div>
@@ -217,6 +227,29 @@ class BSPFPluginClass {
 		echo '<pre>REST Response ' . print_r( $response, 1 ) . '</pre>';
 		*/
 
+		// Use Facebook SDK for sharing photos.
+		$content .= '
+		    <script>
+              window.fbAsyncInit = function() {
+                FB.init({
+                  appId            : \'1919106064987399\',
+                  autoLogAppEvents : true,
+                  xfbml            : true,
+                  version          : \'v2.10\'
+                });
+                FB.AppEvents.logPageView();
+              };
+            
+              (function(d, s, id){
+                 var js, fjs = d.getElementsByTagName(s)[0];
+                 if (d.getElementById(id)) {return;}
+                 js = d.createElement(s); js.id = id;
+                 js.src = "//connect.facebook.net/en_US/sdk.js";
+                 fjs.parentNode.insertBefore(js, fjs);
+               }(document, \'script\', \'facebook-jssdk\'));
+            </script>
+		';
+
 		// Toolbar only for curators.
 		if ( $type == 'private' ) {
 			$content .= '
@@ -255,6 +288,7 @@ class BSPFPluginClass {
 		$content .= '<div class="col-sm-10" id="grid" data-columns>';
 
 		foreach ( $images as $pid => $img ) {
+			$vote_url   = $page_url . '?pid=' . $pid;
 			$img_src    = $path . '/' . $img['filename'];
 			$photo_name = $img['name'];
 			$share_text = "BSPF: Vote for $photo_name!";
@@ -268,15 +302,22 @@ class BSPFPluginClass {
                     aria-hidden=\'true\' 
                     title=\'' . $title . '\' 
                     data-pid=\'' . $pid . '\' 
-                    data-url=\'' . $page_url . '?pid=' . $pid . '\'
+                    data-url=\'' . $vote_url . '\'
                     data-name=\'' . $photo_name . '\'></i>
                     ';
+
+			//$facebook_URL = 'https://www.facebook.com/sharer/sharer.php?u=' . urlencode( $vote_url ) . '&picture=' . urlencode( $img_src ) . '&title=' . urlencode( $photo_name . ' - BSPF Social Media Voting' ) . '&caption=' . urlencode( 'www.bspfestival.org' ) . '&description=' . urlencode( 'Brussels Street Photography Festival contest submission entry. Vote on your favorite photo and help the photographer win the Social Media Prize.' );
+			$twitter_URL = 'https://twitter.com/intent/tweet?text=Vote for ' . $photo_name . ' on the BSPF Contest!&url=' . urlencode( $vote_url ) . '&hashtags=StreetPhotography,BSPF2017&via=BSPFestival_Off';
+
+			$facebook = '<i class=\'fa fa-facebook fa-bspf-social-white facebook-share\' data-url=\'' . $vote_url . '\' title=\'Share on Facebook!\'></i>';
+			$twitter  = '<a href=\'' . $twitter_URL . '\' target=\'_blank\'><i class=\'fa fa-twitter fa-bspf-social-white\' title=\'Share on Twitter!\'></i></a>';
+			$share    = '<a href=\'' . $vote_url . '\' target=\'_blank\'><i class=\'fa fa-link fa-bspf-social-white\' title=\'Get sharing link\'></i></a>';
 
 			$content .= '
                 <div class="grid-item">
                     <div class="img-wrapper" 
                         data-src="' . $img_src . '" 
-                        data-sub-html="<p>' . $photo_name . '</p>' . $icon . '"
+                        data-sub-html="<p>' . $photo_name . '</p><p>' . $icon . '</p><p>' . $facebook . $twitter . $share . '</p>"
 
                         data-pinterest-text="' . $share_text . '" 
                         data-tweet-text="' . $share_text . '"
@@ -292,6 +333,7 @@ class BSPFPluginClass {
                     <ul class="bspf-vote-wrapper">
                         <li>' . $photo_name . '</li>
                         <li>' . $icon . '</li>
+                        <li>' . $facebook . $twitter . $share . '</li>
                     </ul>
                 ';
 			} else {
@@ -439,7 +481,14 @@ class BSPFPluginClass {
 		// Salvattore masonry
 		wp_register_script( 'salvattore-js', plugins_url( 'js/salvattore.min.js', __FILE__ ), [], false, true );
 
-		if ( is_page( 'voting' ) ) {
+		$voting_pages = [
+		  'voting',
+		  'brussels-singles-vote',
+		  'international-singles-vote',
+		  'brussels-singles-stemming',
+		  'international-singles-stemming'
+		];
+		if ( is_page( $voting_pages ) ) {
 			wp_enqueue_style( 'bspfestival-stylesheet' );
 			// Enqueued script with localized data.
 			wp_enqueue_script( 'bspfestival-js' );

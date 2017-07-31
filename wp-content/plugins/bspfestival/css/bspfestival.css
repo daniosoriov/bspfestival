@@ -21,6 +21,19 @@
     text-align: center;
 }
 
+.fa-bspf-social {
+    cursor: pointer;
+    font-size: 14px !important;
+    color: #555;
+    padding: 0 6px;
+}
+.fa-bspf-social-white {
+    cursor: pointer;
+    font-size: 14px !important;
+    color: #999;
+    padding: 0 6px;
+}
+
 .image-preview {
     max-width: 70%;
     display: block;
@@ -114,7 +127,10 @@
 }
 
 .grid-item {
-    padding: 2.5px;
+    padding: 2px 2px 15px;
+    border: 1px solid #333;
+    margin-bottom: 10px;
+    border-radius: 2px;
 }
 
 /* clear fix */

@@ -1,8 +1,7 @@
+/*
+ * javascript compressor: https://jscompress.com/
+ */
 jQuery(document).ready(function ($) {
-    /*
-     * javascript compressor: https://jscompress.com/
-     */
-
     if (document.getElementsByClassName("pop")) {
         $('#ModalImage').modal('show');
         $('.pop').on('click', function () {
@@ -83,17 +82,18 @@ jQuery(document).ready(function ($) {
 
     // Events once each photo is loaded.
     $gallery.on('onSlideItemLoad.lg', function (event, index) {
+        var star = $('.lg-sub-html').find('.star-bspf-pub');
         // Change the Facebook sharing URL.
         // Facebook tool to create URLs: https://apps.lazza.dk/facebook/
         var facebookURL = 'https://www.facebook.com/sharer/sharer.php?' +
-            'u=' + encodeURIComponent($('.star-bspf-pub.checked').attr('data-url')) +
+            'u=' + encodeURIComponent($(star).attr('data-url')) +
             '&picture=' + encodeURIComponent($('.lg-image:visible').attr('src')) +
             '&title=' + encodeURIComponent($('.lg-sub-html').text() + ' - BSPF Social Media Voting') +
             '&caption=' + encodeURIComponent('bspfestival.org') +
             '&description=' + encodeURIComponent('Brussels Street Photography Festival contest submission entry. Vote on your favorite photo and help the photographer win the Social Media Prize.');
         var twitterURL = 'https://twitter.com/intent/tweet?' +
-            'text=Vote for ' + encodeURIComponent($('.star-bspf-pub.checked').attr('data-name')) + ' on the BSPF Contest!' +
-            '&url=' + encodeURIComponent($('.star-bspf-pub.checked').attr('data-url')) +
+            'text=Vote for ' + encodeURIComponent($(star).attr('data-name')) + ' on the BSPF Contest!' +
+            '&url=' + encodeURIComponent($(star).attr('data-url')) +
             '&hashtags=StreetPhotography,BSPF2017' +
             '&via=BSPFestival_Off';
         $('#lg-share-facebook').attr('href', facebookURL);
@@ -196,6 +196,19 @@ jQuery(document).ready(function ($) {
             $(this2).parent().prepend('<span class="text-danger">[01] Error!</span>');
         }, "json");
     });
+
+    $('.facebook-share').on('click', function () {
+        FBshare($(this).attr('data-url'));
+    })
+
+    function FBshare(url) {
+        FB.ui({
+            method: 'feed',
+            link: url,
+        }, function (response) {
+            // Debug response (optional)
+        });
+    }
 
     function assignVote(element, index, vote) {
         var obj = {one: 1, two: 2, three: 3, four: 4, five: 5};

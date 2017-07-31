@@ -71,9 +71,34 @@
   height: 36px;
 }
 .sfstreet-sprite {
-  background: url('https://www.bspfestival.org/wp-content/uploads/2017/05/LOGOS.png') no-repeat -676px -138px;
-  width: 207px;
+  background: url('https://www.bspfestival.org/wp-content/uploads/2017/05/LOGOS.png') no-repeat -691px -153px;
+  width: 221px;
+  height: 59px;
+}
+.villo-sprite {
+  background: url('https://www.bspfestival.org/wp-content/uploads/2017/05/LOGOS.png') no-repeat -57px -265px;
+  width: 90px;
+  height: 70px;
+}
+.lspf-sprite {
+  background: url('https://www.bspfestival.org/wp-content/uploads/2017/05/LOGOS.png') no-repeat -211px -265px;
+  width: 70px;
+  height: 70px;
+}
+.muntpunt-sprite {
+  background: url('https://www.bspfestival.org/wp-content/uploads/2017/05/LOGOS.png') no-repeat -344px -256px;
+  width: 69px;
   height: 88px;
+}
+.creative-district-sprite {
+  background: url('https://www.bspfestival.org/wp-content/uploads/2017/05/LOGOS.png') no-repeat -451px -275px;
+  width: 192px;
+  height: 51px;
+}
+.galerie-ravenstein-sprite {
+  background: url('https://www.bspfestival.org/wp-content/uploads/2017/05/LOGOS.png') no-repeat -672px -268px;
+  width: 218px;
+  height: 65px;
 }
 
 #header-sticky ul.cshero-dropdown li.no_group > .sub-menu {
