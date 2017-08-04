@@ -79,55 +79,34 @@ jQuery(document).ready(function ($) {
         $('#lg-share-twitter').attr('href', twitterURL);
     });
 
-    $(".img-bspf-private").click(function () {
-        $(this).toggleClass("img-bspf-selected");
-        totalSelected = $(".img-bspf-selected").length;
-        console.log('selected photos: ' + totalSelected);
-        $(".selected-photos").text(totalSelected);
-        if (totalSelected > 0) {
-            $(".bspf-toolbar").show();
-        }
+    $(".icon-bspf-filter").click(function () {
+        var element = $("#bspf-filter");
+        var prev_filter = element.attr("data-filter");
+        var new_filter = $(this).attr("data-filter");
+        var fa = $(this).attr("data-fa");
+        var caption = $(this).attr("title");
+
+        // Remove the other filters.
+        $(".icon-bspf-filter").each(function () {
+            var fa = $(this).attr("data-fa");
+            $(this).addClass(fa + "-o").removeClass(fa);
+        });
+
+        if (new_filter != prev_filter) $(this).addClass(fa).removeClass(fa + "-o");
         else {
-            $(".bspf-toolbar").hide();
+            new_filter = 0;
+            caption = 'Non voted';
         }
+        element.attr("data-filter", new_filter);
+        element.attr("data-caption", caption);
     });
 
-    $(".star-bspf-toolbar").click(function () {
-        $(".star-bspf-toolbar").removeClass("selected");
-
-        $(this).removeClass("fa-star-o").addClass("selected fa-star").delay(500).queue(function () {
-            $(this).removeClass("selected fa-star").addClass("fa-star-o").dequeue();
-        });
-        var vote_num = getVoteNumber($(this).parent().attr("class"));
-        $(".img-bspf-selected").each(function (index) {
-            $(this).parent().find("ul").children().each(function (index) {
-                updateVoteStars($(this).children(), index, vote_num);
-            });
-        });
-        ;
+    $(".bspf-filter-button").click(function () {
+        BSPFPrivateFilter(1);
     });
 
-    $(".star-bspf-private").click(function () {
-        var vote = $(this).parent().attr("class");
-        var vote_num = getVoteNumber(vote);
-        var last_vote = $(this).parent().parent().find(".fa-star:last").parent().attr("class");
-        var pid = $(this).parent().parent().attr('data-pid');
-        // Assigning a vote, change the stars.
-        if (vote != last_vote) {
-            $(this).addClass("fa-star").removeClass("fa-star-o");
-            $(this).parent().parent().children().each(function (index) {
-                updateVoteStars($(this).children(), index, vote_num);
-            });
-        }
-        // If deselecting the star, so removing the vote.
-        else if (vote == last_vote) {
-            $(this).parent().parent().children().each(function (index) {
-                $(this).children().addClass("fa-star-o").removeClass("fa-star").attr('title', 'Vote ' + (index + 1));
-            });
-            vote_num = 0;
-        }
-        votePid($(this), pid, vote_num, 'private');
-    });
+    BSPFPrivateVoteAction();
+    BSPFPrivateChangePage();
 
     // Scale slider system in bootstrap & js: http://seiyria.com/bootstrap-slider/
 
@@ -188,10 +167,8 @@ jQuery(document).ready(function ($) {
             pid: pid,
             vote: vote,
         }
-        console.log(data);
         element.removeClass('fa-star fa-star-o').addClass('fa-spinner fa-spin');
         $.post(bspf_ajax.ajax_url, data, function (response) {
-            console.log(response);
             if (response) {
                 if (vote > 0) {
                     var title = (type == 'public') ? 'Favorite!' : 'Remove vote';
@@ -205,8 +182,114 @@ jQuery(document).ready(function ($) {
         }, "json");
     }
 
+    function BSPFPrivateVoteAction() {
+        $(".icon-bspf-private").click(function () {
+            var vote = $(this).attr("data-vote");
+            var tmp = $(this).parent().parent();
+            var last_vote = tmp.attr("data-vote");
+            var pid = tmp.attr('data-pid');
+            var fa = $(this).attr("data-fa");
+
+            // Update the icons.
+            // Assigning a vote, change the icons.
+            tmp.children().each(function () {
+                var ele = $(this).find("i");
+                var ele_vote = ele.attr("data-vote");
+                var ele_fa = ele.attr("data-fa");
+                var sel = ele.attr("data-sel");
+                var unsel = ele.attr("data-unsel");
+                if (ele_vote != undefined) {
+                    ele.addClass(ele_fa + "-o").removeClass(ele_fa).attr("title", unsel);
+                    if (vote != last_vote) {
+                        if (ele_vote > 0 && ele_vote < vote) {
+                            ele.addClass(ele_fa).removeClass(ele_fa + "-o").attr("title", unsel);
+                        }
+                        else if (ele_vote > 0 && ele_vote == vote) {
+                            ele.addClass(ele_fa).removeClass(ele_fa + "-o").attr("title", sel);
+                        }
+                        else if (ele_vote < 0 && ele_vote == vote) {
+                            ele.addClass(ele_fa).removeClass(ele_fa + "-o").attr("title", sel);
+                        }
+                    }
+                }
+            });
+            // Removing a vote.
+            if (vote == last_vote) {
+                $(this).addClass(fa + "-o").removeClass(fa).attr("title", $(this).attr("data-unsel"));
+                vote = 0;
+            }
+            // Update the last voted.
+            tmp.attr("data-vote", vote);
+            votePrivatePid(pid, vote, tmp);
+        });
+    }
+
+    function BSPFPrivateFilter(page) {
+        var element = $("#bspf-filter");
+        var filter = element.attr("data-filter");
+        var caption = element.attr("data-caption");
+        var gid = element.attr("data-gid");
+        var data = {
+            _ajax_nonce: bspf_ajax.nonce,
+            action: 'BSPFAjaxFilter',
+            filter: filter,
+            gid: gid,
+            page: page,
+        }
+        $("#bspf-filter-text").html('<i class="fa fa-spinner fa-spin" aria-hidden="true"></i>');
+        $("#bspf-filter-current-page").html('<i class="fa fa-spinner fa-spin" aria-hidden="true"></i>');
+        $.get(bspf_ajax.ajax_url, data, function (response) {
+            $("#bspf-filter-text").html(response.text);
+            $("#bspf-filter-pages").html(response.pages);
+            $(".bspf-gallery-ajax").html(response.content);
+        }, "json")
+            .done(function () {
+                console.log('completed the filter!');
+                BSPFPrivateVoteAction();
+                BSPFPrivateChangePage();
+            });
+    }
+
+    function BSPFPrivateChangePage() {
+        $(".bspf-filter-page").click(function () {
+            BSPFPrivateFilter($(this).attr("data-page"));
+        });
+    }
+
+    function votePrivatePid(pid, vote, element) {
+        var data = {
+            _ajax_nonce: bspf_ajax.nonce,
+            action: 'BSPFAjaxVoting',
+            pid: pid,
+            vote: vote,
+            private: true,
+        }
+        var scroll = element.attr("data-scroll-num");
+        element.parent().find(".alert").remove();
+        element.hide().parent().append('<i class="fa fa-spinner fa-spin"></i>');
+        scrollToAnchor(scroll);
+
+        $.post(bspf_ajax.ajax_url, data, function (response) {
+            if (response.status == 'success') {
+                element.show().parent().find(".fa-spinner").remove();
+                element.parent().find(".alert").remove();
+                if (response.values) {
+                    for (var v in response.values.stats) {
+                        $("#vote-" + v).html(response.values.stats[v]);
+                    }
+                }
+            }
+            else {
+                var message = '<div class="alert alert-danger alert-dismissable"> <a href="#" class="close" data-dismiss="alert" aria-label="close">&times;</a> <strong>Error!</strong> ' + response.message + '</div>';
+                element.show().parent().find(".fa-spinner").remove();
+                element.parent().find(".alert").remove()
+                element.parent().append(message);
+            }
+        }, "json");
+    }
+
     function getVoteNumber(vote) {
-        var obj = {one: 1, two: 2, three: 3, four: 4, five: 5};
+        var obj = {one: 1, two: 2, three: 3, four: 4, five: 5, reject: -1, flag: -2};
         return obj[vote];
     }
 
@@ -235,4 +318,12 @@ jQuery(document).ready(function ($) {
             $('#myModal').modal('hide');
         }, "json");
     }
+
+    function scrollToAnchor(id) {
+        var element = $("div[data-scroll='" + id + "']");
+        if (element.length) {
+            $('html, body').animate({scrollTop: element.offset().top - 30}, 'slow');
+        }
+    }
+
 });
