@@ -13,6 +13,23 @@ jQuery(document).ready(function ($) {
         updateVotes();
     });
 
+    var $series = $('.series-wrapper');
+
+    $series.lightGallery({
+        selector: '.series-img',
+        mousewheel: false,
+        download: false,
+        thumbnail: false,
+        autoplay: false,
+        fullScreen: false,
+        zoom: false,
+        facebook: false,
+        twitter: false,
+        googlePlus: false,
+        pinterest: false,
+        loop: false,
+    });
+
     var $gallery = $('.bspf-gallery-wrapper');
 
     $gallery.lightGallery({
@@ -102,7 +119,8 @@ jQuery(document).ready(function ($) {
     });
 
     $(".bspf-filter-button").click(function () {
-        BSPFPrivateFilter(1);
+        var pos = $(this).attr('data-position');
+        BSPFPrivateFilter(pos, 1);
     });
 
     BSPFPrivateVoteAction();
@@ -184,67 +202,84 @@ jQuery(document).ready(function ($) {
 
     function BSPFPrivateVoteAction() {
         $(".icon-bspf-private").click(function () {
-            var vote = $(this).attr("data-vote");
-            var tmp = $(this).parent().parent();
-            var last_vote = tmp.attr("data-vote");
-            var pid = tmp.attr('data-pid');
-            var fa = $(this).attr("data-fa");
-
-            // Update the icons.
-            // Assigning a vote, change the icons.
-            tmp.children().each(function () {
-                var ele = $(this).find("i");
-                var ele_vote = ele.attr("data-vote");
-                var ele_fa = ele.attr("data-fa");
-                var sel = ele.attr("data-sel");
-                var unsel = ele.attr("data-unsel");
-                if (ele_vote != undefined) {
-                    ele.addClass(ele_fa + "-o").removeClass(ele_fa).attr("title", unsel);
-                    if (vote != last_vote) {
-                        if (ele_vote > 0 && ele_vote < vote) {
-                            ele.addClass(ele_fa).removeClass(ele_fa + "-o").attr("title", unsel);
-                        }
-                        else if (ele_vote > 0 && ele_vote == vote) {
-                            ele.addClass(ele_fa).removeClass(ele_fa + "-o").attr("title", sel);
-                        }
-                        else if (ele_vote < 0 && ele_vote == vote) {
-                            ele.addClass(ele_fa).removeClass(ele_fa + "-o").attr("title", sel);
-                        }
-                    }
-                }
-            });
-            // Removing a vote.
-            if (vote == last_vote) {
-                $(this).addClass(fa + "-o").removeClass(fa).attr("title", $(this).attr("data-unsel"));
-                vote = 0;
-            }
-            // Update the last voted.
-            tmp.attr("data-vote", vote);
-            votePrivatePid(pid, vote, tmp);
+            BSPFUpdateIcons($(this), 'pid');
+        });
+        $(".vote-series").click(function () {
+            BSPFUpdateIcons($(this), 'gid');
         });
     }
 
-    function BSPFPrivateFilter(page) {
+    function BSPFUpdateIcons(t, group) {
+        var vote = t.attr("data-vote");
+        var element = t.parent().parent();
+        var last_vote = element.attr("data-vote");
+        var category = element.attr("data-category");
+        var groupId = (group == 'pid') ? element.attr('data-pid') : element.attr('data-gid');
+        var fa = t.attr("data-fa");
+
+        // Update the icons.
+        // Assigning a vote, change the icons.
+        element.children().each(function () {
+            var ele = $(this).find("i");
+            var ele_vote = ele.attr("data-vote");
+            var ele_fa = ele.attr("data-fa");
+            var sel = ele.attr("data-sel");
+            var unsel = ele.attr("data-unsel");
+            if (ele_vote != undefined) {
+                ele.addClass(ele_fa + "-o").removeClass(ele_fa).attr("title", unsel);
+                if (vote != last_vote) {
+                    if (ele_vote > 0 && ele_vote < vote) {
+                        ele.addClass(ele_fa).removeClass(ele_fa + "-o").attr("title", unsel);
+                    }
+                    else if (ele_vote > 0 && ele_vote == vote) {
+                        ele.addClass(ele_fa).removeClass(ele_fa + "-o").attr("title", sel);
+                    }
+                    else if (ele_vote < 0 && ele_vote == vote) {
+                        ele.addClass(ele_fa).removeClass(ele_fa + "-o").attr("title", sel);
+                    }
+                }
+            }
+        });
+        // Removing a vote.
+        if (vote == last_vote) {
+            t.addClass(fa + "-o").removeClass(fa).attr("title", t.attr("data-unsel"));
+            vote = 0;
+        }
+
+        // Update the last voted.
+        element.attr("data-vote", vote);
+
+        votePrivate(groupId, vote, element, group, category);
+    }
+
+    function BSPFPrivateFilter(pos, page) {
         var element = $("#bspf-filter");
         var filter = element.attr("data-filter");
         var caption = element.attr("data-caption");
+        var category = element.attr("data-category");
+        var group = element.attr("data-group");
         var gid = element.attr("data-gid");
         var data = {
             _ajax_nonce: bspf_ajax.nonce,
             action: 'BSPFAjaxFilter',
             filter: filter,
+            category: category,
+            group: group,
             gid: gid,
             page: page,
         }
-        $("#bspf-filter-text").html('<i class="fa fa-spinner fa-spin" aria-hidden="true"></i>');
-        $("#bspf-filter-current-page").html('<i class="fa fa-spinner fa-spin" aria-hidden="true"></i>');
+        $(".bspf-filter-text").html('<i class="fa fa-spinner fa-spin" aria-hidden="true"></i>');
+        $(".bspf-filter-current-page").html('<i class="fa fa-spinner fa-spin" aria-hidden="true"></i>');
+
         $.get(bspf_ajax.ajax_url, data, function (response) {
-            $("#bspf-filter-text").html(response.text);
-            $("#bspf-filter-pages").html(response.pages);
+            $(".bspf-filter-text").html(response.text);
+            $(".bspf-filter-pages").html(response.pages);
             $(".bspf-gallery-ajax").html(response.content);
         }, "json")
             .done(function () {
-                console.log('completed the filter!');
+                if (pos == 'down') {
+                    $('html, body').animate({scrollTop: $(".bspf-gallery-ajax").offset().top - 30}, 'slow');
+                }
                 BSPFPrivateVoteAction();
                 BSPFPrivateChangePage();
             });
@@ -252,22 +287,28 @@ jQuery(document).ready(function ($) {
 
     function BSPFPrivateChangePage() {
         $(".bspf-filter-page").click(function () {
-            BSPFPrivateFilter($(this).attr("data-page"));
+            var pos = $(this).parent().parent().attr('data-position');
+            BSPFPrivateFilter(pos, $(this).attr("data-page"));
         });
     }
 
-    function votePrivatePid(pid, vote, element) {
+    function votePrivate(groupId, vote, element, group, category) {
         var data = {
             _ajax_nonce: bspf_ajax.nonce,
             action: 'BSPFAjaxVoting',
-            pid: pid,
+            group_id: groupId,
             vote: vote,
             private: true,
+            group: group,
+            category: category,
         }
         var scroll = element.attr("data-scroll-num");
+        var last_scroll = parseInt($("div[data-scroll]:last").attr("data-scroll")) + 1;
+        var scroll_to = (scroll == last_scroll) ? $("div[data-scroll-filter]") : $("div[data-scroll='" + scroll + "']");
+
         element.parent().find(".alert").remove();
         element.hide().parent().append('<i class="fa fa-spinner fa-spin"></i>');
-        scrollToAnchor(scroll);
+        scrollToAnchor(scroll_to);
 
         $.post(bspf_ajax.ajax_url, data, function (response) {
             if (response.status == 'success') {
@@ -275,7 +316,7 @@ jQuery(document).ready(function ($) {
                 element.parent().find(".alert").remove();
                 if (response.values) {
                     for (var v in response.values.stats) {
-                        $("#vote-" + v).html(response.values.stats[v]);
+                        $(".vote-" + v).html(response.values.stats[v]);
                     }
                 }
             }
@@ -286,21 +327,6 @@ jQuery(document).ready(function ($) {
                 element.parent().append(message);
             }
         }, "json");
-    }
-
-    function getVoteNumber(vote) {
-        var obj = {one: 1, two: 2, three: 3, four: 4, five: 5, reject: -1, flag: -2};
-        return obj[vote];
-    }
-
-    function updateVoteStars(element, index, vote) {
-        element.addClass("fa-star-o").removeClass("fa-star").attr('title', 'Vote ' + (index + 1));
-        if ((index + 1) <= vote) {
-            element.addClass("fa-star").removeClass("fa-star-o");
-            if ((index + 1) == vote) {
-                element.attr('title', 'Remove vote');
-            }
-        }
     }
 
     function updateVotes() {
@@ -319,8 +345,7 @@ jQuery(document).ready(function ($) {
         }, "json");
     }
 
-    function scrollToAnchor(id) {
-        var element = $("div[data-scroll='" + id + "']");
+    function scrollToAnchor(element) {
         if (element.length) {
             $('html, body').animate({scrollTop: element.offset().top - 30}, 'slow');
         }

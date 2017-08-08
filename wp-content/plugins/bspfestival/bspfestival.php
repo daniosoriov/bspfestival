@@ -9,6 +9,15 @@
  * License: GPL2
  */
 
+/**
+ * TODO: put some of the functionality on an admin page so it's scalable, for example indicating the ids of the
+ * galleries.
+ * TODO: create a gallery to display the finalists, use this gallery for the page of the finalists from 2016
+ * and 2017.
+ * TODO: create a specific page for each submission so the voting can be shared and all social media channels
+ * use the right photo.
+ */
+
 // exit if accessed directly
 if ( !defined( 'ABSPATH' ) ) {
 	exit;
@@ -104,13 +113,44 @@ class BSPFPluginClass {
 	function BSPFShortcode( $atts = [], $content = null, $tag = '' ) {
 		$content  = '';
 		$atts     = shortcode_atts( [
-		  'gid'      => 0,
-		  'category' => 'int_sin',
+		  'category' => 'international',
+		  'group'    => 'singles',
 		  'type'     => 'public',
+		  'gid'      => 0,
 		], $atts, $tag );
-		$gid      = $atts['gid'];
 		$category = $atts['category'];
+		$group    = $atts['group'];
 		$type     = $atts['type'];
+		$gid      = $atts['gid'];
+
+		$today = new DateTime();
+		if ( $type == 'private' ) {
+			$user = wp_get_current_user();
+			if ( !$user || !is_user_logged_in() ) {
+				return '<p>&nbsp;</p><p class="center">You must be <a href="' . wp_login_url( get_permalink() ) . '">logged in</a> to access this page.</p>';
+			}
+			$int_users = [ 13, 14, 15, 16, 17, 18, 19 ];
+			$bru_users = [ 13, 14, 15, 16, 17, 20, 21 ];
+			if ( ( $category == 'international' && !in_array( $user->ID, $int_users ) ) || ( $category == 'brussels' && !in_array( $user->ID, $bru_users ) ) ) {
+				$inv       = ( $category == 'international' ) ? 'Brussels' : 'International';
+				$url_sin   = ( $category == 'international' ) ? get_page_link( 30793 ) : get_page_link( 25693 );
+				$url_ser   = ( $category == 'international' ) ? get_page_link( 30809 ) : get_page_link( 30806 );
+				$available = '<p>You can access the <a href="' . $url_sin . '">' . $inv . ' Singles Gallery</a> or the <a href="' . $url_ser . '">' . $inv . ' Series Gallery</a> instead.</p>';
+
+				return '<div class="center"><p>&nbsp;</p><p>Sorry, you do not have access to this page.</p>' . $available . '</div>';
+			}
+
+			$limit = new DateTime( '2017-08-21' );
+			if ( $today >= $limit ) {
+				wp_logout();
+
+				return '<div class="center"><p>&nbsp;</p><p>Sorry, you cannot access this page anymore. Voting has finished.</p>';
+			}
+		}
+		$limit = new DateTime( '2017-09-03' );
+		if ( $today > $limit ) {
+			return '<div class="center"><p>Voting is now closed.</p></div>';
+		}
 
 		// If the page is loaded with a single image to see, we load the image and the gallery related to it.
 		$pid = ( isset( $_GET['pid'] ) ) ? (int) esc_attr( $_GET['pid'] ) : false;
@@ -119,7 +159,7 @@ class BSPFPluginClass {
 			$content    .= $this->BSPFLoadSinglePhotoLayout( $image_data );
 		}
 		// Load the gallery to vote.
-		$content .= $this->BSPFLoadPhotos( $gid, $category, $type );
+		$content .= ( $group == 'singles' ) ? $this->BSPFLoadPhotos( $category, $type, $gid ) : $this->BSPFLoadSeries( $category );
 
 		return $content;
 	}
@@ -138,16 +178,7 @@ class BSPFPluginClass {
 		$path               = get_site_url() . '/' . $this->BSPFGetGalleryPath( $result->galleryid );
 		$result->img_src    = $path . '/' . $result->filename;
 		$result->photo_name = $this->BSPFGetDisplayNameFromBasename( $result->filename );
-		switch ( $result->galleryid ) {
-			case 230:
-				$result->category        = 'int_sin';
-				$result->category_layout = 'International Singles';
-				break;
-			case 231:
-				$result->category        = 'bru_sin';
-				$result->category_layout = 'Brussels Singles';
-				break;
-		}
+		$result->category   = ( $result->galleryid == 230 ) ? 'International Singles' : 'Brussels Singles';
 
 		return $result;
 	}
@@ -181,7 +212,7 @@ class BSPFPluginClass {
                     <div class="modal-content"> 
                         <div class="modal-header">
                             <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
-                            <h6 class="modal-title">Social Media voting - ' . $data->category_layout . '</h6>
+                            <h6 class="modal-title">Social Media voting - ' . $data->category . '</h6>
                         </div>
                         <div class="modal-body">
                             <img src="' . $data->img_src . '" class="image-preview">
@@ -200,44 +231,129 @@ class BSPFPluginClass {
 	}
 
 	/**
-	 * Creates the HTML to display the photos for the short code.
+	 * Load the HTML for the series gallery.
 	 *
-	 * @param int $gid the id of the gallery.
-	 * @param string $category categories: int_sin, int_ser, bru_sin, bru_ser.
+	 * @param string $category international or singles.
+	 *
+	 * @return string the HTML.
+	 */
+	function BSPFLoadSeries( $category = 'international' ) {
+		$content   = '';
+		$user      = wp_get_current_user();
+		$uti       = new BSPFUtilitiesClass();
+		$galleries = $uti->getSeries( $category );
+		$count     = count( $galleries );
+		$flagged   = $uti->getSeriesFlagged( $user->ID );
+		$stats     = $uti->getSeriesVoteStats( $user->ID, $category );
+		$content   .= '
+            <h2 class="center">Curator gallery</h2>
+            <h3 class="center">' . ucwords( $category . ' Series' ) . '</h3>
+            <h4 class="center">Welcome ' . $user->display_name . '</h4>
+		';
+		$content   .= $this->BSPFGetVotingBar( $stats, $count, $category, 'series' );
+		$content   .= '<div class="bspf-gallery-ajax">';
+		$count     = 0;
+		foreach ( $galleries as $gid => $gallery ) {
+			if ( in_array( $gid, (array) $flagged ) ) {
+				$gallery['flag'] = true;
+			}
+			$content .= $this->BSPFGetSeriesHTML( $gallery, $category, 0, $count ++ );
+		}
+		$content .= '</div>';
+		if ( $count > 1 ) {
+			$content .= $this->BSPFGetVotingBar( $stats, $count, $category, 'series', 'down' );
+		}
+
+		return $content;
+	}
+
+	/**
+	 * Creates the voting bar for the curators.
+	 *
+	 * @param array $stats an array with the voting statistics for the current user.
+	 * @param integer $count the amount of items that are being displayed.
+	 * @param string $category international or brussels.
+	 * @param string $group singles or series.
+	 * @param string $pos up or down.
+	 * @param int $gid the id of the gallery when showing the bar for singles.
+	 *
+	 * @return string the HTML.
+	 */
+	function BSPFGetVotingBar( $stats, $count, $category = 'international', $group = 'singles', $pos = 'up', $gid = 0 ) {
+		$uti     = new BSPFUtilitiesClass();
+		$content = '
+            <div class="row">
+                <div class="col-sm-1"></div>
+                <div class="col-sm-10">
+                    <div class="bspf-filter-bar" data-scroll-filter="' . ( ( $pos == 'up' ) ? - 1 : 'down' ) . '">
+                        <div class="bspf-stats center">
+                            <ul class="list-inline">
+                                <li>' . ( ( $group == 'singles' ) ? 'Pictures' : 'Series' ) . ' : ' . $stats['total'] . '</li>
+                                <li>&#124;</li>
+                                <li>Voted : <span class="vote-voted">' . $stats['voted'] . '</span></li>
+                                <li>&#124;</li>
+                                <li>To vote : <span class="vote-left">' . $stats['left'] . '</span></li>
+                                <li>&#124;</li>
+                                <li><span class="star-num" title="Voted 1">1</span><i class="fa fa-star star-stats" aria-hidden="true"></i> : <span class="vote-1">' . $stats[1] . '</span></li>
+                                <li>&#124;</li>
+                                <li><span class="star-num" title="Voted 2">2</span><i class="fa fa-star star-stats" aria-hidden="true"></i> : <span class="vote-2">' . $stats[2] . '</span></li>
+                                <li>&#124;</li>
+                                <li><span class="star-num" title="Voted 3">3</span><i class="fa fa-star star-stats" aria-hidden="true"></i> : <span class="vote-3">' . $stats[3] . '</span></li>
+                                <li>&#124;</li>
+                                <li><span class="star-num" title="Voted 4">4</span><i class="fa fa-star star-stats" aria-hidden="true"></i> : <span class="vote-4">' . $stats[4] . '</span></li>
+                                <li>&#124;</li>
+                                <li><span class="star-num" title="Voted 5">5</span><i class="fa fa-star star-stats" aria-hidden="true"></i> : <span class="vote-5">' . $stats[5] . '</span></li>
+                                <li>&#124;</li>
+                                <li><i class="fa fa-times-circle" aria-hidden="true" title="Rejected"></i> : <span class="vote--1">' . $stats[ - 1 ] . '</span></li>
+                                <li>&#124;</li>
+                                <li><i class="fa fa-flag" aria-hidden="true" title="Flagged"></i> : <span class="vote--2">' . $stats[ - 2 ] . '</span></li>
+                            </ul>
+                        </div>
+                        <hr />
+                        <div id="bspf-filter" class="bspf-filter center" data-filter="0" data-category="' . $category . '" data-group="' . $group . '" data-gid="' . $gid . '" data-caption="Non voted">
+                            <ul class="list-inline">
+                                <li>Filter:</li>
+                                <li><i class="fa fa-star-o icon-bspf-filter" data-filter="1" data-fa="fa-star" title="Voted 1" aria-hidden="true"></i></li>
+                                <li><i class="fa fa-star-o icon-bspf-filter" data-filter="2" data-fa="fa-star" title="Voted 2" aria-hidden="true"></i></li>
+                                <li><i class="fa fa-star-o icon-bspf-filter" data-filter="3" data-fa="fa-star" title="Voted 3" aria-hidden="true"></i></li>
+                                <li><i class="fa fa-star-o icon-bspf-filter" data-filter="4" data-fa="fa-star" title="Voted 4" aria-hidden="true"></i></li>
+                                <li><i class="fa fa-star-o icon-bspf-filter" data-filter="5" data-fa="fa-star" title="Voted 5" aria-hidden="true"></i></li>
+                                <li>&#124;</li>
+                                <li><i class="fa fa-times-circle-o icon-bspf-filter" data-filter="-1" data-fa="fa-times-circle" title="Rejected" aria-hidden="true"></i></li>
+                                <li>&#124;</li>
+                                <li><i class="fa fa-flag-o icon-bspf-filter" data-filter="-2" data-fa="fa-flag" title="Flagged" aria-hidden="true"></i></li>
+                                <li><button class="bspf-filter-button" data-position="' . $pos . '">Refresh</button></li>
+                            </ul>
+                            <p class="bspf-filter-text">' . $uti->getFilterViewingText( $count, 0, $group ) . '.</p>
+                        </div>
+                        <hr />
+                        <div class="bspf-filter-pages center" data-position="' . $pos . '">' . $uti->getFilterPagesText( $stats, 0, $group ) . '</div>
+                    </div>
+                </div>
+                <div class="col-sm-1"></div>
+            </div>
+            ';
+
+		return $content;
+	}
+
+	/**
+	 * Creates the HTML code to display the photos for the short code.
+	 *
+	 * @param string $category international or brussels.
 	 * @param string $type public or private.
+	 * @param int $gid the id of the gallery.
 	 *
 	 * @return string the content of the page.
 	 */
-	function BSPFLoadPhotos( $gid = 0, $category = 'int_sin', $type = 'public' ) {
-		$user = wp_get_current_user();
-		if ( $type == 'private' && ( !$user || !is_user_logged_in() ) ) {
-			return '<p>&nbsp;</p><p class="center">You must be <a href="' . wp_login_url( get_permalink() ) . '">logged in</a> to access this page.</p>';
-		}
-		$title = str_replace( [ 'int', 'bru', 'sin', 'ser', '_' ], [
-		  'International',
-		  'Brussels',
-		  'Singles',
-		  'Series',
-		  ' '
-		], $category );
-		if ( $category ) {
-			switch ( $category ) {
-				case 'int_sin':
-					$gid = 230;
-					break;
-
-				case 'bru_sin':
-					$gid = 231;
-					break;
-			}
-		}
-		if ( !$gid ) {
-			return '';
-		}
+	function BSPFLoadPhotos( $category = 'international', $type = 'public', $gid = 0 ) {
+		$user     = wp_get_current_user();
+		$gid      = ( !$gid ) ? ( ( $category == 'international' ) ? 230 : 231 ) : $gid;
 		$voted    = [];
 		$page_url = get_permalink();
 		$path     = get_site_url() . '/' . $this->BSPFGetGalleryPath( $gid );
 		$images   = $this->BSPFGetImages( $gid, $type );
+		$count_i  = count( $images );
 		$uti      = new BSPFUtilitiesClass();
 		$content  = '';
 
@@ -291,62 +407,11 @@ class BSPFPluginClass {
 		}
 
 		if ( $type == 'private' ) {
-			$stats   = $uti->getVoteStats( $user->ID, $gid );
-			$content .= '
-            <h2 class="center">Curator gallery</h2>
-            <h3 class="center">' . $title . '</h3>
-            <h4 class="center">Welcome ' . $user->display_name . '</h4>
-            <div class="row">
-                <div class="col-sm-1"></div>
-                <div class="col-sm-10">
-                    <div class="bspf-filter-bar">
-                        <div class="bspf-stats center">
-                            <ul class="list-inline">
-                                <li>Photos : ' . $stats['total'] . '</li>
-                                <li>&#124;</li>
-                                <li>Voted : <span id="vote-voted">' . $stats['voted'] . '</span></li>
-                                <li>&#124;</li>
-                                <li>To vote : <span id="vote-left">' . $stats['left'] . '</span></li>
-                                <li>&#124;</li>
-                                <li><span class="star-num" title="Voted 1">1</span><i class="fa fa-star star-stats" aria-hidden="true"></i> : <span id="vote-1">' . $stats[1] . '</span></li>
-                                <li>&#124;</li>
-                                <li><span class="star-num" title="Voted 2">2</span><i class="fa fa-star star-stats" aria-hidden="true"></i> : <span id="vote-2">' . $stats[2] . '</span></li>
-                                <li>&#124;</li>
-                                <li><span class="star-num" title="Voted 3">3</span><i class="fa fa-star star-stats" aria-hidden="true"></i> : <span id="vote-3">' . $stats[3] . '</span></li>
-                                <li>&#124;</li>
-                                <li><span class="star-num" title="Voted 4">4</span><i class="fa fa-star star-stats" aria-hidden="true"></i> : <span id="vote-4">' . $stats[4] . '</span></li>
-                                <li>&#124;</li>
-                                <li><span class="star-num" title="Voted 5">5</span><i class="fa fa-star star-stats" aria-hidden="true"></i> : <span id="vote-5">' . $stats[5] . '</span></li>
-                                <li>&#124;</li>
-                                <li><i class="fa fa-times-circle" aria-hidden="true" title="Rejected"></i> : <span id="vote--1">' . $stats[ - 1 ] . '</span></li>
-                                <li>&#124;</li>
-                                <li><i class="fa fa-flag" aria-hidden="true" title="Flagged"></i> : <span id="vote--2">' . $stats[ - 2 ] . '</span></li>
-                            </ul>
-                        </div>
-                        <hr />
-                        <div id="bspf-filter" class="bspf-filter center" data-filter="0" data-gid="' . $gid . '" data-caption="Non voted">
-                            <ul class="list-inline">
-                                <li>Filter:</li>
-                                <li><i class="fa fa-star-o icon-bspf-filter" data-filter="1" data-fa="fa-star" title="Voted 1" aria-hidden="true"></i></li>
-                                <li><i class="fa fa-star-o icon-bspf-filter" data-filter="2" data-fa="fa-star" title="Voted 2" aria-hidden="true"></i></li>
-                                <li><i class="fa fa-star-o icon-bspf-filter" data-filter="3" data-fa="fa-star" title="Voted 3" aria-hidden="true"></i></li>
-                                <li><i class="fa fa-star-o icon-bspf-filter" data-filter="4" data-fa="fa-star" title="Voted 4" aria-hidden="true"></i></li>
-                                <li><i class="fa fa-star-o icon-bspf-filter" data-filter="5" data-fa="fa-star" title="Voted 5" aria-hidden="true"></i></li>
-                                <li>&#124;</li>
-                                <li><i class="fa fa-times-circle-o icon-bspf-filter" data-filter="-1" data-fa="fa-times-circle" title="Rejected" aria-hidden="true"></i></li>
-                                <li>&#124;</li>
-                                <li><i class="fa fa-flag-o icon-bspf-filter" data-filter="-2" data-fa="fa-flag" title="Flagged" aria-hidden="true"></i></li>
-                                <li><button class="bspf-filter-button">Refresh</button></li>
-                            </ul>
-                            <p id="bspf-filter-text">' . $uti->getFilterViewingText( count( $images ), 0 ) . '.</p>
-                        </div>
-                        <hr />
-                        <div id="bspf-filter-pages" class="center">' . $uti->getFilterPagesText( $stats, 0 ) . '</div>
-                    </div>
-                </div>
-                <div class="col-sm-1"></div>
-            </div>
-            ';
+			$stats   = $uti->getSinglesVoteStats( $user->ID, $gid );
+			$content .= '<h2 class="center">Curator gallery</h2>';
+			$content .= '<h3 class="center">' . ucwords( $category . ' Singles' ) . '</h3>';
+			$content .= '<h4 class="center">Welcome ' . $user->display_name . '</h4>';
+			$content .= $this->BSPFGetVotingBar( $stats, $count_i, $category, 'singles', 'up', $gid );
 			$content .= '<div class="bspf-gallery-wrapper-private">';
 			$content .= '<div class="row">';
 			$content .= '<div class="col-sm-1"></div>';
@@ -409,9 +474,68 @@ class BSPFPluginClass {
 		}
 		$content .= '</div>';
 		$content .= '<div class="col-sm-1"></div>';
-		$content .= '</div></div>';
+		$content .= '</div>';
+		if ( $type == 'private' ) {
+			$content .= $this->BSPFGetVotingBar( $stats, $count_i, $category, 'singles', 'down', $gid );
+		}
+		$content .= '</div>';
 
 		return $content;
+	}
+
+	/**
+	 * Gets the HTML for the specific series gallery.
+	 *
+	 * @param array $gallery an associative array with information about the series.
+	 * @param string $category international or brussels.
+	 * @param int $vote the current vote of the series.
+	 * @param int $number an increasing number to indicate the position of the series in the page.
+	 *
+	 * @return string the HTML.
+	 */
+	function BSPFGetSeriesHTML( $gallery, $category = 'international', $vote = 0, $number = 0 ) {
+		$gid     = $gallery['gid'];
+		$path    = get_site_url() . '/' . $gallery['path'];
+		$flagged = ( $gallery['flag'] ) ? $this->BSPFFlaggedContent( $gallery['flag'] ) : '';
+		$content = '<div class="series-container"><div class="series-wrapper" data-scroll="' . $number . '">';
+		$images  = $this->BSPFGetSeriesImages( $gid );
+		foreach ( $images as $filename ) {
+			$img_src = $path . '/' . $filename;
+			$content .= '<div class="series-img" data-src="' . $img_src . '"><img src="' . $img_src . '"></div>';
+		}
+		$content .= '</div>';
+		$content .= '
+		<div class="series-desc center">
+            <ul class="list-inline" data-vote="' . $vote . '" data-gid="' . $gid . '" data-category="' . $category . '" data-scroll-num="' . ( $number + 1 ) . '">
+                <li><i class="fa fa-star' . ( ( $vote >= 1 ) ? '' : '-o' ) . ' vote-series" data-vote="1" data-fa="fa-star" data-sel="Remove vote" data-unsel="Vote 1" title="Vote 1" aria-hidden="true"></i></li>
+                <li><i class="fa fa-star' . ( ( $vote >= 2 ) ? '' : '-o' ) . ' vote-series" data-vote="2" data-fa="fa-star" data-sel="Remove vote" data-unsel="Vote 2" title="Vote 2" aria-hidden="true"></i></li>
+                <li><i class="fa fa-star' . ( ( $vote >= 3 ) ? '' : '-o' ) . ' vote-series" data-vote="3" data-fa="fa-star" data-sel="Remove vote" data-unsel="Vote 3" title="Vote 3" aria-hidden="true"></i></li>
+                <li><i class="fa fa-star' . ( ( $vote >= 4 ) ? '' : '-o' ) . ' vote-series" data-vote="4" data-fa="fa-star" data-sel="Remove vote" data-unsel="Vote 4" title="Vote 4" aria-hidden="true"></i></li>
+                <li><i class="fa fa-star' . ( ( $vote >= 5 ) ? '' : '-o' ) . ' vote-series" data-vote="5" data-fa="fa-star" data-sel="Remove vote" data-unsel="Vote 5" title="Vote 5" aria-hidden="true"></i></li>
+                <li>&#124;</li>
+                <li><i class="fa fa-times-circle' . ( ( $vote == - 1 ) ? '' : '-o' ) . ' vote-series" data-vote="-1" data-fa="fa-times-circle" data-sel="Remove reject" data-unsel="Reject" title="Reject" aria-hidden="true"></i></li>
+                <li>&#124;</li>
+                <li><i class="fa fa-flag' . ( ( $vote == - 2 ) ? '' : '-o' ) . ' vote-series" data-vote="-2" data-fa="fa-flag" data-sel="Remove flag" data-unsel="Flag!" title="Flag!" aria-hidden="true"></i></li>
+            </ul>
+              ' . $flagged . '
+        </div></div>';
+		$content = preg_replace( "/(\/[^>]*>)([^<]*)(<)/", "\\1\\3", $content );
+		$content = str_replace( [ "\r", "\n", "\t" ], "", $content );
+
+		return $content;
+	}
+
+	/**
+	 * Creates an HTML markup for flagged content from other voters.
+	 *
+	 * @param integer $flag the amount of flags the item has received.
+	 *
+	 * @return string the HTML markup.
+	 */
+	function BSPFFlaggedContent( $flag ) {
+		$cur = sprintf( _n( 'another curator', 'other %s curators', $flag ), $flag );
+
+		return '<p class="alert alert-danger"><i class="fa fa-exclamation-triangle"></i><span> Attention: flagged by ' . $cur . '!</span></p>';
 	}
 
 	/**
@@ -424,13 +548,11 @@ class BSPFPluginClass {
 	 * @param int $vote the current vote of the picture for the user.
 	 * @param int $number the number of the photo in the gallery.
 	 *
-	 * @return mixed|string the html content.
+	 * @return string the HTML.
 	 */
 	function BSPFGetImageHTML( $pid, $img, $path, $vote = 0, $number = 0 ) {
 		$img_src = $path . '/' . $img['filename'];
-		$cur     = sprintf( _n( 'another curator', 'other %s curators', $img['flag'] ), $img['flag'] );
-		$text    = '<p class="alert alert-danger"><i class="fa fa-exclamation-triangle"></i><span> Attention: flagged by ' . $cur . '!</span></p>';
-		$flagged = ( $img['flag'] ) ? $text : '';
+		$flagged = ( $img['flag'] ) ? $this->BSPFFlaggedContent( $img['flag'] ) : '';
 		$content = '
             <div class="grid-item-private" data-scroll="' . $number . '">
                 <div class="img-wrapper">
@@ -461,7 +583,7 @@ class BSPFPluginClass {
 	/**
 	 * Get the path for a specific gallery.
 	 *
-	 * @param integer $gid the gallery.
+	 * @param integer $gid the id of the gallery.
 	 *
 	 * @return null|string the path of the gallery.
 	 */
@@ -471,6 +593,25 @@ class BSPFPluginClass {
 		$result = $wpdb->get_var( $wpdb->prepare( $query, $gid ) );
 
 		return $result;
+	}
+
+	/**
+	 * Get the filename of the images inside a gallery, useful for the series.
+	 *
+	 * @param $gid the id of the gallery.
+	 *
+	 * @return array an array of objects with the filename.
+	 */
+	function BSPFGetSeriesImages( $gid ) {
+		global $wpdb;
+		$query = "
+	        SELECT filename
+            FROM {$wpdb->prefix}ngg_pictures
+            WHERE galleryid = %d
+            ORDER BY filename
+	    ";
+
+		return $wpdb->get_col( $wpdb->prepare( $query, $gid ) );
 	}
 
 	/**
@@ -550,7 +691,7 @@ class BSPFPluginClass {
 				}
 			}
 			$images = $new_images;
-			
+
 			// Return only 50 images.
 			$images = array_slice( $images, ( ( $page - 1 ) * 50 ), 50, true );
 
@@ -622,6 +763,7 @@ class BSPFPluginClass {
 
 		$voting_pages = [
 		  'voting',
+		  'curator-voting',
 		  'brussels-singles-vote',
 		  'international-singles-vote',
 		  'brussels-singles-stemming',
@@ -677,23 +819,40 @@ class BSPFPluginClass {
 	public function BSPFAjaxFilter() {
 		check_ajax_referer( $this->nonce );
 		if ( true ) {
-			$gid     = $_GET['gid'];
-			$filter  = $_GET['filter'];
-			$page    = $_GET['page'];
-			$content = '';
-			$path    = get_site_url() . '/' . $this->BSPFGetGalleryPath( $gid );
+			$gid      = $_GET['gid'];
+			$filter   = $_GET['filter'];
+			$category = $_GET['category'];
+			$group    = $_GET['group'];
+			$page     = $_GET['page'];
+			$content  = '';
+			$uti      = new BSPFUtilitiesClass();
 
-			$count  = 0;
-			$images = $this->BSPFGetImages( $gid, 'private', $filter, $page );
-			foreach ( $images as $pid => $img ) {
-				$content .= $this->BSPFGetImageHTML( $pid, $img, $path, $filter, $count ++ );
+			$count = 0;
+			$user  = wp_get_current_user();
+			if ( $group == 'singles' ) {
+				$path   = get_site_url() . '/' . $this->BSPFGetGalleryPath( $gid );
+				$images = $this->BSPFGetImages( $gid, 'private', $filter, $page );
+				foreach ( $images as $pid => $img ) {
+					$content .= $this->BSPFGetImageHTML( $pid, $img, $path, $filter, $count ++ );
+				}
+				$stats = $uti->getSinglesVoteStats( $user->ID, $gid );
+			} else {
+				$galleries = $uti->getSeries( $category, $filter, $page );
+				$flagged   = $uti->getSeriesFlagged( $user->ID );
+				foreach ( $galleries as $gid => $gallery ) {
+					if ( in_array( $gid, (array) $flagged ) ) {
+						$gallery['flag'] = true;
+					}
+					$content .= $this->BSPFGetSeriesHTML( $gallery, $category, $filter, $count ++ );
+				}
+				$stats = $uti->getSeriesVoteStats( $user->ID, $category );
 			}
-			$uti = new BSPFUtilitiesClass();
+
 			echo json_encode( [
 			  'status'  => 'success',
 			  'content' => $content,
-			  'text'    => $uti->getFilterViewingText( count( $images ), $filter ),
-			  'pages'   => $uti->getFilterPagesText( $uti->getVoteStats( get_current_user_id(), $gid ), $filter, $page ),
+			  'text'    => $uti->getFilterViewingText( $count, $filter, $group ),
+			  'pages'   => $uti->getFilterPagesText( $stats, $filter, $group, $page ),
 			] );
 		} else {
 			echo json_encode( [ 'status' => 'error', 'message' => 'Invalid request!' ] );
@@ -706,41 +865,43 @@ class BSPFPluginClass {
 		if ( true ) {
 			// Prepare parameters.
 			global $wpdb;
-			$user    = wp_get_current_user();
-			$user_id = ( $user ) ? $user->ID : 'NULL';
-			$vote    = ( $_POST['vote'] ) ? (integer) $_POST['vote'] : 0;
-			$pid     = (integer) $_POST['pid'];
-			$private = $_POST['private'];
+			$user     = wp_get_current_user();
+			$user_id  = ( $user ) ? $user->ID : 'NULL';
+			$vote     = ( $_POST['vote'] ) ? (integer) $_POST['vote'] : 0;
+			$private  = $_POST['private'];
+			$col      = ( $_POST['group'] ) ? $_POST['group'] : 'pid';
+			$group_id = (integer) ( ( $private ) ? $_POST['group_id'] : $_POST['pid'] );
+			$category = $_POST['category'];
 
 			// Check that is a valid integer.
-			if ( !is_integer( $pid ) || $pid <= 0 ) {
-				echo json_encode( [ 'status' => 'warning', 'message' => 'Invalid pid [01]!' ] );
+			if ( !is_integer( $group_id ) || $group_id <= 0 ) {
+				echo json_encode( [ 'status' => 'warning', 'message' => 'Invalid id [01]!' ] );
 				wp_die(); // stop executing script
 			}
-			// Check that the pid exists in the db.
-			$query  = "SELECT pid FROM {$wpdb->prefix}ngg_pictures WHERE pid = %d";
-			$db_pid = $wpdb->get_var( $wpdb->prepare( $query, $pid ) );
-			if ( $pid != $db_pid ) {
-				echo json_encode( [ 'status' => 'warning', 'message' => 'Invalid pid [02]!' ] );
+			// Check that exists in the db.
+			$table = ( $col == 'pid' ) ? 'ngg_pictures' : 'ngg_gallery';
+			$query = "SELECT " . $col . " FROM {$wpdb->prefix}" . $table . " WHERE " . $col . " = %d";
+			$db_id = $wpdb->get_var( $wpdb->prepare( $query, $group_id ) );
+			if ( $group_id != $db_id ) {
+				echo json_encode( [ 'status' => 'warning', 'message' => 'Invalid id [02]!' ] );
 				wp_die(); // stop executing script
 			}
-			// Check that the vote is a valid integer from 0 to 5.
+			// Check that the vote is a valid integer from -2 to 5.
 			if ( !is_integer( $vote ) || ( $vote < - 2 || $vote > 5 ) ) {
 				echo json_encode( [ 'status' => 'warning', 'message' => 'Invalid vote [03]!' ] );
 				wp_die(); // stop executing script
 			}
-
 
 			// If making it favorite.
 			if ( $vote > - 3 || $vote < 6 ) {
 				// Insert information on db.
 				$query = "
                     INSERT INTO {$wpdb->prefix}bspf_votes 
-                      (ip, pid, vote, user_id) VALUES 
+                      (ip, " . $col . ", vote, user_id) VALUES 
                       ('%s', %d, %d, %s)
                     ON DUPLICATE KEY UPDATE vote = %d
                 ";
-				$query = $wpdb->prepare( $query, $_SERVER['REMOTE_ADDR'], $pid, $vote, $user_id, $vote );
+				$query = $wpdb->prepare( $query, $_SERVER['REMOTE_ADDR'], $group_id, $vote, $user_id, $vote );
 				$wpdb->query( $query );
 			} else {
 				echo json_encode( [ 'status' => 'warning', 'message' => 'Something went wrong [04]!' ] );
@@ -749,9 +910,14 @@ class BSPFPluginClass {
 
 			$values = [];
 			if ( $private ) {
-				$uti             = new BSPFUtilitiesClass();
-				$gid             = $uti->getGalleryId( $pid );
-				$values['stats'] = $uti->getVoteStats( $user->ID, $gid );
+				$uti = new BSPFUtilitiesClass();
+				if ( $col == 'pid' ) {
+					$gid             = $uti->getGalleryId( $group_id );
+					$values['stats'] = $uti->getSinglesVoteStats( $user->ID, $gid );
+				} else {
+					$values['stats'] = $uti->getSeriesVoteStats( $user->ID, $category );
+				}
+
 			}
 
 			echo json_encode( [ 'status' => 'success', 'values' => $values ] );
@@ -943,7 +1109,7 @@ class BSPFUtilitiesClass {
 	 *
 	 * @return array an associative array with the votes and their quantity.
 	 */
-	public function getVoteStats( $user_id, $gid ) {
+	public function getSinglesVoteStats( $user_id, $gid ) {
 		global $wpdb;
 		$voted  = 0;
 		$votes  = [ - 2 => 0, - 1 => 0, 1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0 ];
@@ -962,6 +1128,41 @@ class BSPFUtilitiesClass {
 		}
 		$votes['voted'] = $voted;
 		$total          = $this->getGalleryLength( $gid );
+		$votes['left']  = $total - $voted;
+		$votes['total'] = $total;
+
+		return $votes;
+	}
+
+	/**
+	 * Get the total number of votes for a specific user and category for the series.
+	 *
+	 * @param integer $user_id the id of the user.
+	 * @param string $category international or brussels
+	 *
+	 * @return array an associative array with the statistics.
+	 */
+	public function getSeriesVoteStats( $user_id, $category = 'international' ) {
+		global $wpdb;
+		$voted  = 0;
+		$votes  = [ - 2 => 0, - 1 => 0, 1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0 ];
+		$query  = "
+          SELECT COUNT(*) as num, v.vote 
+          FROM {$wpdb->prefix}bspf_votes v 
+          INNER JOIN {$wpdb->prefix}ngg_gallery g ON v.gid = g.gid 
+          WHERE v.user_id = %d 
+            AND v.gid <> 0 
+            AND g.path LIKE %s
+          GROUP BY v.vote
+        ";
+		$like   = '%' . $wpdb->esc_like( date( 'Y' ) . '/' . $category . '-series-submission' ) . '%';
+		$result = $wpdb->get_results( $wpdb->prepare( $query, $user_id, $like ) );
+		foreach ( $result as $data ) {
+			$voted                += $data->num;
+			$votes[ $data->vote ] = $data->num;
+		}
+		$votes['voted'] = $voted;
+		$total          = (integer) $this->getSeriesTotalLength( $category );
 		$votes['left']  = $total - $voted;
 		$votes['total'] = $total;
 
@@ -997,14 +1198,100 @@ class BSPFUtilitiesClass {
 	}
 
 	/**
+	 * Get the galleries of the series.
+	 *
+	 * @param string $category international or brussels.
+	 * @param int $vote filter the series by vote.
+	 * @param int $page filter the series by the page.
+	 *
+	 * @return array|null|object an associative array with the galleries.
+	 */
+	public function getSeries( $category = 'international', $vote = 0, $page = 1 ) {
+		global $wpdb;
+		$query     = "
+	        SELECT gid, path
+	        FROM {$wpdb->prefix}ngg_gallery
+	        WHERE path LIKE %s
+	    ";
+		$like      = '%' . $wpdb->esc_like( date( 'Y' ) . '/' . $category . '-series-submission' ) . '%';
+		$galleries = $wpdb->get_results( $wpdb->prepare( $query, $like ) );
+
+		$new   = [];
+		$votes = $this->getSeriesVotes( wp_get_current_user()->ID );
+		foreach ( $galleries as $data ) {
+			if ( $vote == 0 ) {
+				if ( !array_key_exists( $data->gid, $votes ) ) {
+					$new[ $data->gid ] = (array) $data;
+				}
+			} else {
+				if ( $votes[ $data->gid ] == $vote ) {
+					$new[ $data->gid ] = (array) $data;
+				}
+			}
+		}
+		$galleries = array_slice( $new, ( ( $page - 1 ) * 10 ), 10, true );
+
+		return $galleries;
+	}
+
+	/**
+	 * Get the votes for the series.
+	 *
+	 * @param integer $user_id the id of the user.
+	 *
+	 * @return array an associative array with the votes.
+	 */
+	public function getSeriesVotes( $user_id ) {
+		global $wpdb;
+		$query   = "SELECT vote, gid FROM {$wpdb->prefix}bspf_votes WHERE user_id = %d AND gid <> 0";
+		$results = $wpdb->get_results( $wpdb->prepare( $query, $user_id ) );
+		$votes   = [];
+		foreach ( $results as $data ) {
+			$votes[ $data->gid ] = $data->vote;
+		}
+
+		return $votes;
+	}
+
+	/**
+	 * Get the total amount of series for a certain category.
+	 *
+	 * @param string $category international or singles.
+	 *
+	 * @return null|string the number of galleries.
+	 */
+	public function getSeriesTotalLength( $category = 'international' ) {
+		global $wpdb;
+		$query = "SELECT COUNT(*) FROM {$wpdb->prefix}ngg_gallery WHERE path LIKE %s";
+		$like  = '%' . $wpdb->esc_like( date( 'Y' ) . '/' . $category . '-series-submission' ) . '%';
+
+		return $wpdb->get_var( $wpdb->prepare( $query, $like ) );
+	}
+
+	/**
+	 * Get the ids of the galleries that have been flagged by a different user than the current one.
+	 *
+	 * @param integer $user_id the id of the user.
+	 *
+	 * @return array an associative array with the ids of the flagged galleries.
+	 */
+	public function getSeriesFlagged( $user_id ) {
+		global $wpdb;
+		$query = "SELECT gid FROM {$wpdb->prefix}bspf_votes WHERE user_id <> %d AND gid <> 0 AND vote = -2";
+
+		return $wpdb->get_col( $wpdb->prepare( $query, $user_id ) );
+	}
+
+	/**
 	 * Get the text to put on the filter bar for voting.
 	 *
 	 * @param integer $count the amount of photos.
 	 * @param integer $vote the current type of vote.
+	 * @param string $group singles or series.
 	 *
 	 * @return string the text for the filter bar.
 	 */
-	public function getFilterViewingText( $count, $vote ) {
+	public function getFilterViewingText( $count, $vote, $group = 'singles' ) {
 		$tmp = [
 		  - 2 => 'flagged',
 		  - 1 => 'rejected',
@@ -1015,8 +1302,13 @@ class BSPFUtilitiesClass {
 		  4   => 'voted 4',
 		  5   => 'voted 5',
 		];
+		if ( $group == 'singles' ) {
+			$sin_plu = _n( '1 picture which is', '%s pictures which are', $count );
+		} else {
+			$sin_plu = _n( '1 series which is', '%s series which are', $count );
+		}
 
-		return 'Currently viewing ' . sprintf( _n( '1 picture which is', '%s pictures which are', $count ), $count ) . ' ' . $tmp[ (integer) $vote ];
+		return 'Currently viewing ' . sprintf( $sin_plu, $count ) . ' ' . $tmp[ (integer) $vote ];
 	}
 
 	/**
@@ -1024,12 +1316,13 @@ class BSPFUtilitiesClass {
 	 *
 	 * @param array $stats an associative array with the information about the current user voting statistics.
 	 * @param integer $vote the current voting filter.
+	 * @param string $group singles or series.
 	 * @param int $page the current page.
 	 *
 	 * @return string an HTML with the pages available and the current page information.
 	 */
-	public function getFilterPagesText( $stats, $vote, $page = 1 ) {
-		$num = floor( ( ( $vote == 0 ) ? $stats['left'] : $stats[ $vote ] ) / 50 ) + 1;
+	public function getFilterPagesText( $stats, $vote, $group = 'singles', $page = 1 ) {
+		$num = floor( ( ( $vote == 0 ) ? $stats['left'] : $stats[ $vote ] ) / ( $group == 'singles' ? 50 : 10 ) ) + 1;
 
 		$pages = '';
 		if ( $num > 0 ) {
@@ -1039,7 +1332,7 @@ class BSPFUtilitiesClass {
 			}
 			$pages .= '</p>';
 		}
-		$pages .= '<p id="bspf-filter-current-page">Currently viewing page ' . $page . ' of ' . ( $num ? $num : 1 ) . '</p>';
+		$pages .= '<p class="bspf-filter-current-page">Currently viewing page ' . $page . ' of ' . ( $num ? $num : 1 ) . '</p>';
 
 		return $pages;
 	}

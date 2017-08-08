@@ -179,20 +179,24 @@
     margin: 0 auto;
 }
 
-.img-desc {
+.img-desc, .series-desc {
     text-align: center;
     padding-top: 10px;
     color: #888;
 }
 
-.img-desc-private {
+.img-desc-private, .series-desc {
     border-bottom: 1px solid #f1f1f1;
     padding: 16px 0 8px;
     width: 90%;
     margin: 0 auto;
 }
 
-.img-desc .fa {
+.series-desc {
+    margin-bottom: 35px;
+}
+
+.img-desc .fa, .series-desc .fa {
     font-size: 24px;
 }
 
@@ -212,10 +216,28 @@
     color: maroon;
 }
 
-.icon-bspf-private, .star-bspf-public {
+.icon-bspf-private, .star-bspf-public, .vote-series {
     cursor: pointer;
 }
 
 .modal-body .fa {
     font-size: 24px;
+}
+
+.series-wrapper {
+    display: flex;
+    background-color: #222222;
+    padding: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+}
+
+.series-img {
+    cursor: pointer;
+    background-color: #333333;
+    max-width: 280px;
+    padding: 4px;
+    border: 1px solid #444444;
+    margin: 2px;
 }
