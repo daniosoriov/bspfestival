@@ -739,16 +739,12 @@ class BSPFPluginClass {
 	}
 
 	function BSPFInit() {
-		// Change jquery version. We need a higher version for jQuery functions.
-		wp_deregister_script( 'jquery' );
-		wp_register_script( 'jquery', 'https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js', [], '3.2.1' );
-
 		// Register the stylesheet
 		wp_register_style( 'bspfestival-stylesheet', plugins_url( 'css/bspfestival.css', __FILE__ ) );
 		wp_register_style( 'bspfestival-stylesheet-general', plugins_url( 'css/bspfgeneral.css', __FILE__ ) );
 		// Register the script
-		//wp_register_script( 'bspfestival-js', plugins_url( 'js/bspfestival.min.js', __FILE__ ), [] );
-		wp_register_script( 'bspfestival-js', plugins_url( 'js/bspfestival.js', __FILE__ ), [] );
+		wp_register_script( 'bspfestival-js', plugins_url( 'js/bspfestival.min.js', __FILE__ ), [] );
+		//wp_register_script( 'bspfestival-js', plugins_url( 'js/bspfestival.js', __FILE__ ), [] );
 
 		// LightGallery
 		wp_register_style( 'lightgallery-css', 'https://cdn.jsdelivr.net/lightgallery/1.3.9/css/lightgallery.min.css', [], '1.3.9' );
@@ -761,6 +757,11 @@ class BSPFPluginClass {
 		// Salvattore masonry
 		wp_register_script( 'salvattore-js', plugins_url( 'js/salvattore.min.js', __FILE__ ), [], false, true );
 
+		if ( is_page( 'curator-voting' ) ) {
+			// Change jquery version. We need a higher version for jQuery functions.
+			wp_deregister_script( 'jquery' );
+			wp_register_script( 'jquery', 'https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js', [], '3.2.1' );
+		}
 		$voting_pages = [
 		  'voting',
 		  'curator-voting',
@@ -1322,7 +1323,9 @@ class BSPFUtilitiesClass {
 	 * @return string an HTML with the pages available and the current page information.
 	 */
 	public function getFilterPagesText( $stats, $vote, $group = 'singles', $page = 1 ) {
-		$num = floor( ( ( $vote == 0 ) ? $stats['left'] : $stats[ $vote ] ) / ( $group == 'singles' ? 50 : 10 ) ) + 1;
+		$current = ( $vote == 0 ) ? $stats['left'] : $stats[ $vote ];
+		$factor  = ( $group == 'singles' ) ? 50 : 10;
+		$num     = floor( $current / $factor ) + ( ( $current % $factor ) ? 1 : 0 );
 
 		$pages = '';
 		if ( $num > 0 ) {

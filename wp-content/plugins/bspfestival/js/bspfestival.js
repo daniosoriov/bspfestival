@@ -13,22 +13,25 @@ jQuery(document).ready(function ($) {
         updateVotes();
     });
 
-    var $series = $('.series-wrapper');
+    function BSPFPrivateSeriesLightGallery() {
+        var $series = $('.series-wrapper');
 
-    $series.lightGallery({
-        selector: '.series-img',
-        mousewheel: false,
-        download: false,
-        thumbnail: false,
-        autoplay: false,
-        fullScreen: false,
-        zoom: false,
-        facebook: false,
-        twitter: false,
-        googlePlus: false,
-        pinterest: false,
-        loop: false,
-    });
+        $series.lightGallery({
+            selector: '.series-img',
+            mousewheel: false,
+            download: false,
+            thumbnail: false,
+            autoplay: false,
+            fullScreen: false,
+            zoom: false,
+            facebook: false,
+            twitter: false,
+            googlePlus: false,
+            pinterest: false,
+            loop: false,
+        });
+    }
+
 
     var $gallery = $('.bspf-gallery-wrapper');
 
@@ -100,17 +103,23 @@ jQuery(document).ready(function ($) {
         var element = $("#bspf-filter");
         var prev_filter = element.attr("data-filter");
         var new_filter = $(this).attr("data-filter");
-        var fa = $(this).attr("data-fa");
         var caption = $(this).attr("title");
 
-        // Remove the other filters.
+        // Update the other filters.
         $(".icon-bspf-filter").each(function () {
-            var fa = $(this).attr("data-fa");
-            $(this).addClass(fa + "-o").removeClass(fa);
+            var ele_fa = $(this).attr("data-fa");
+            var ele_filter = $(this).attr("data-filter");
+            $(this).addClass(ele_fa + "-o").removeClass(ele_fa);
+            if (new_filter != prev_filter) {
+                if (ele_filter > 0 && ele_filter <= new_filter) {
+                    $(this).addClass(ele_fa).removeClass(ele_fa + "-o");
+                }
+                else if (ele_filter < 0 && ele_filter == new_filter) {
+                    $(this).addClass(ele_fa).removeClass(ele_fa + "-o");
+                }
+            }
         });
-
-        if (new_filter != prev_filter) $(this).addClass(fa).removeClass(fa + "-o");
-        else {
+        if (new_filter == prev_filter) {
             new_filter = 0;
             caption = 'Non voted';
         }
@@ -125,6 +134,7 @@ jQuery(document).ready(function ($) {
 
     BSPFPrivateVoteAction();
     BSPFPrivateChangePage();
+    BSPFPrivateSeriesLightGallery();
 
     // Scale slider system in bootstrap & js: http://seiyria.com/bootstrap-slider/
 
@@ -282,6 +292,7 @@ jQuery(document).ready(function ($) {
                 }
                 BSPFPrivateVoteAction();
                 BSPFPrivateChangePage();
+                BSPFPrivateSeriesLightGallery();
             });
     }
 
