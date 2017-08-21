@@ -241,3 +241,21 @@
     border: 1px solid #444444;
     margin: 2px;
 }
+
+.bspf-stats-wrapper {
+    margin-bottom: 100px;
+}
+
+.table-stats .image {
+    width: 450px;
+}
+
+.table-users td {
+    width: 50%;
+}
+
+.table-stats .series-wrapper img {
+    max-width: 138px;
+    padding: 3px;
+
+}

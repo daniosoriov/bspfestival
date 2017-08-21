@@ -117,15 +117,17 @@ class BSPFPluginClass {
 		  'group'    => 'singles',
 		  'type'     => 'public',
 		  'gid'      => 0,
+		  'stats'    => 0,
 		], $atts, $tag );
 		$category = $atts['category'];
 		$group    = $atts['group'];
 		$type     = $atts['type'];
 		$gid      = $atts['gid'];
+		$stats    = $atts['stats'];
 
 		$today = new DateTime();
-		if ( $type == 'private' ) {
-			$user = wp_get_current_user();
+		$user  = wp_get_current_user();
+		if ( $type == 'private' && !$stats ) {
 			if ( !$user || !is_user_logged_in() ) {
 				return '<p>&nbsp;</p><p class="center">You must be <a href="' . wp_login_url( get_permalink() ) . '">logged in</a> to access this page.</p>';
 			}
@@ -146,6 +148,16 @@ class BSPFPluginClass {
 
 				return '<div class="center"><p>&nbsp;</p><p>Sorry, you cannot access this page anymore. Voting has finished.</p>';
 			}
+		} elseif ( $stats && $user ) {
+			if ( !$user || !is_user_logged_in() ) {
+				return '<p>&nbsp;</p><p class="center">You must be <a href="' . wp_login_url( get_permalink() ) . '">logged in</a> to access this page.</p>';
+			}
+			$bspf_users = [ 1, 13, 14, 15 ];
+			if ( in_array( $user->ID, $bspf_users ) ) {
+				return $this->BSPFLoadStats( $category, $group, $type );
+			} else {
+				return '<div class="center"><p>&nbsp;</p><p>Sorry, you do not have access to this page.</p></div>';
+			}
 		}
 		$limit = new DateTime( '2017-09-03' );
 		if ( $today > $limit ) {
@@ -165,6 +177,90 @@ class BSPFPluginClass {
 	}
 
 	/**
+	 * Creates the HTML code for the statistics of the votes.
+	 *
+	 * @param string $category international or brussels.
+	 * @param string $group singles or series.
+	 * @param string $type private or public.
+	 *
+	 * @return string the HTML content.
+	 */
+	function BSPFLoadStats( $category = 'international', $group = 'singles', $type = 'private' ) {
+		$site_url = get_site_url();
+		$uti      = new BSPFUtilitiesClass();
+		$averages = $uti->getAverages( $category, $group, $type );
+		$content  = '
+            <div class="bspf-stats-wrapper">
+                <h2 class="center">' . $type . ' - ' . $category . ' ' . $group . '</h2>
+                <h3 class="center">' . ( count( $averages ) . ( ( $group == 'singles' ) ? ' pictures' : ' series' ) ) . '</h3>
+                <table class="table table-striped table-stats">
+                    <thead>
+                        <tr>
+        ';
+		if ( $type == 'public' ) {
+			$content .= '
+                        <th><strong>Picture</strong></th>
+                        <th><strong>Author</strong></th>
+                        <th><strong>Votes</strong></th>
+                    <tr/>
+                </thead>
+                <tbody>
+            ';
+			foreach ( $averages as $data ) {
+				$content .= '
+                    <tr>
+                        <td class="image"><img class="img-responsive img-stats" src="' . $site_url . '/' . $data['path'] . '/' . $data['filename'] . '"></td>
+                        <td>' . $data['display_name'] . '</td>
+                        <td>' . $data['votes'] . '</td>
+                    </tr>
+                ';
+			}
+		} elseif ( $type == 'private' ) {
+			$content .= '
+                        <th><strong>' . ( ( $group == 'singles' ) ? 'Picture' : 'Series' ) . '</strong></th>
+                        <th><strong>Author</strong></th>
+                        <th><strong>Average</strong></th>
+                        <th><strong>Stats</strong></th>
+                    </tr>
+                </thead>
+                <tbody>
+            ';
+			foreach ( $averages as $data ) {
+				$work = '';
+				if ( $group == 'singles' ) {
+					$work = '<img class="img-responsive img-stats" src="' . $site_url . '/' . $data['path'] . '/' . $data['filename'] . '">';
+				} elseif ( $group == 'series' ) {
+					$work = '<div class="series-wrapper">';
+					foreach ( $data['pictures'] as $filename ) {
+						$work .= '<img class="img-responsive" src="' . $site_url . '/' . $data['path'] . '/' . $filename . '">';
+					}
+					$work .= '</div>';
+				}
+				$users = '<table class="table table-responsive table-striped table-users"><tbody>';
+				foreach ( $data['users'] as $user ) {
+					$users .= '<tr><td class="">' . $user['username'] . '</td><td>' . $uti->getVoteIcon( $user['vote'] ) . '</td></tr>';
+				}
+				$users   .= '</tbody></table>';
+				$content .= '
+                    <tr>
+                        <td class="image">' . $work . '</td>
+                        <td>' . $data['display_name'] . ( ( $data['count'] ) ? ' (' . $data['current'] . '/' . $data['count'] . ')' : '' ) . '</td>
+                        <td>' . $data['average_full'] . '</td>
+                        <td>' . $users . '</td>
+                    </tr>
+                ';
+			}
+		}
+		$content .= '
+                    </tbody>
+                </table>
+            </div>
+        ';
+
+		return $content;
+	}
+
+	/**
 	 * Loads the information about a single photo.
 	 *
 	 * @param integer $pid the pid of the photo.
@@ -173,11 +269,12 @@ class BSPFPluginClass {
 	 */
 	function BSPFLoadSinglePhoto( $pid ) {
 		global $wpdb;
+		$uti                = new BSPFUtilitiesClass();
 		$query              = "SELECT pid, galleryid, filename FROM {$wpdb->prefix}ngg_pictures WHERE pid = %d";
 		$result             = $wpdb->get_row( $wpdb->prepare( $query, $pid ) );
 		$path               = get_site_url() . '/' . $this->BSPFGetGalleryPath( $result->galleryid );
 		$result->img_src    = $path . '/' . $result->filename;
-		$result->photo_name = $this->BSPFGetDisplayNameFromBasename( $result->filename );
+		$result->photo_name = $uti->getDisplayNameFromBasename( $result->filename );
 		$result->category   = ( $result->galleryid == 230 ) ? 'International Singles' : 'Brussels Singles';
 
 		return $result;
@@ -260,9 +357,7 @@ class BSPFPluginClass {
 			$content .= $this->BSPFGetSeriesHTML( $gallery, $category, 0, $count ++ );
 		}
 		$content .= '</div>';
-		if ( $count > 1 ) {
-			$content .= $this->BSPFGetVotingBar( $stats, $count, $category, 'series', 'down' );
-		}
+		$content .= $this->BSPFGetVotingBar( $stats, $count, $category, 'series', 'down' );
 
 		return $content;
 	}
@@ -708,34 +803,17 @@ class BSPFPluginClass {
             LIMIT 45
         ";
 		$result = $wpdb->get_results( $wpdb->prepare( $query, $gid ) );
+		$uti    = new BSPFUtilitiesClass();
 		foreach ( $result as $data ) {
 			$images[ $data->pid ] = [
 			  'filename' => $data->filename,
-			  'name'     => $this->BSPFGetDisplayNameFromBasename( $data->filename ),
+			  'name'     => $uti->getDisplayNameFromBasename( $data->filename ),
 			];
 		}
 
 		//echo '<pre>Images all ' . print_r( $images, 1 ) . '</pre>';
 
 		return $images;
-	}
-
-	/**
-	 * Display the human readable name from a filename.
-	 *
-	 * @param string $basename
-	 *
-	 * @return string the human readable version.
-	 */
-	function BSPFGetDisplayNameFromBasename( $basename ) {
-		return trim( ucwords( preg_replace( '/[0-9]+/', '', str_replace( [
-		  '_',
-		  '-',
-		  '.jpg',
-		  '.JPG',
-		  '.jpeg',
-		  '.JPEG'
-		], [ ' ', ' ', '', '', '', '' ], $basename ) ) ) );
 	}
 
 	function BSPFInit() {
@@ -762,7 +840,8 @@ class BSPFPluginClass {
 			wp_deregister_script( 'jquery' );
 			wp_register_script( 'jquery', 'https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js', [], '3.2.1' );
 		}
-		$voting_pages = [
+		$pages = [
+		  'statistics',
 		  'voting',
 		  'curator-voting',
 		  'brussels-singles-vote',
@@ -770,7 +849,7 @@ class BSPFPluginClass {
 		  'brussels-singles-stemming',
 		  'international-singles-stemming'
 		];
-		if ( is_page( $voting_pages ) ) {
+		if ( is_page( $pages ) ) {
 			wp_enqueue_style( 'bspfestival-stylesheet' );
 			// Enqueued script with localized data.
 			wp_enqueue_script( 'bspfestival-js' );
@@ -895,6 +974,11 @@ class BSPFPluginClass {
 
 			// If making it favorite.
 			if ( $vote > - 3 || $vote < 6 ) {
+				// Delete information if a curator is voting.
+				if ( $private && $user ) {
+					$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}bspf_votes WHERE " . $col . " = %d AND user_id = %d", $group_id, $user->ID ) );
+				}
+
 				// Insert information on db.
 				$query = "
                     INSERT INTO {$wpdb->prefix}bspf_votes 
@@ -1156,7 +1240,7 @@ class BSPFUtilitiesClass {
             AND g.path LIKE %s
           GROUP BY v.vote
         ";
-		$like   = '%' . $wpdb->esc_like( date( 'Y' ) . '/' . $category . '-series-submission' ) . '%';
+		$like   = '%' . $wpdb->esc_like( 'gallery-curator/' . date( 'Y' ) . '/' . $category . '-series-submission' ) . '%';
 		$result = $wpdb->get_results( $wpdb->prepare( $query, $user_id, $like ) );
 		foreach ( $result as $data ) {
 			$voted                += $data->num;
@@ -1214,7 +1298,7 @@ class BSPFUtilitiesClass {
 	        FROM {$wpdb->prefix}ngg_gallery
 	        WHERE path LIKE %s
 	    ";
-		$like      = '%' . $wpdb->esc_like( date( 'Y' ) . '/' . $category . '-series-submission' ) . '%';
+		$like      = '%' . $wpdb->esc_like( 'gallery-curator/' . date( 'Y' ) . '/' . $category . '-series-submission' ) . '%';
 		$galleries = $wpdb->get_results( $wpdb->prepare( $query, $like ) );
 
 		$new   = [];
@@ -1264,7 +1348,7 @@ class BSPFUtilitiesClass {
 	public function getSeriesTotalLength( $category = 'international' ) {
 		global $wpdb;
 		$query = "SELECT COUNT(*) FROM {$wpdb->prefix}ngg_gallery WHERE path LIKE %s";
-		$like  = '%' . $wpdb->esc_like( date( 'Y' ) . '/' . $category . '-series-submission' ) . '%';
+		$like  = '%' . $wpdb->esc_like( 'gallery-curator/' . date( 'Y' ) . '/' . $category . '-series-submission' ) . '%';
 
 		return $wpdb->get_var( $wpdb->prepare( $query, $like ) );
 	}
@@ -1281,6 +1365,193 @@ class BSPFUtilitiesClass {
 		$query = "SELECT gid FROM {$wpdb->prefix}bspf_votes WHERE user_id <> %d AND gid <> 0 AND vote = -2";
 
 		return $wpdb->get_col( $wpdb->prepare( $query, $user_id ) );
+	}
+
+	/**
+	 * Gets the averages for the curation galleries.
+	 *
+	 * @param string $category international or brussels.
+	 * @param string $group singles or series.
+	 * @param string $type private or public.
+	 *
+	 * @return array an associative array with all the data.
+	 */
+	public function getAverages( $category = 'international', $group = 'singles', $type = 'private' ) {
+		global $wpdb;
+
+		$averages = [];
+		if ( $group == 'singles' ) {
+			if ( $type == 'private' ) {
+				$query        = "
+                    SELECT COUNT(*) as num_votes, AVG(v.vote) as average_full, AVG(IF(v.vote < 0, 0, v.vote)) as average, p.pid, p.filename, g.path
+                    FROM {$wpdb->prefix}bspf_votes v
+                    INNER JOIN {$wpdb->prefix}ngg_pictures p ON p.pid = v.pid
+                    INNER JOIN {$wpdb->prefix}ngg_gallery g ON g.gid = p.galleryid
+                    WHERE v.pid <> 0 
+                      AND v.user_id <> 0
+                      AND g.path LIKE %s
+                    GROUP BY p.pid HAVING " . ( ( $category == 'international' ) ? "average_full >= 2.25" : "average >= 2.25" ) . "
+                    ORDER BY average_full DESC
+                ";
+				$like         = '%' . $wpdb->esc_like( date( 'Y' ) . '/' . $category . '-singles-submission' ) . '%';
+				$results      = $wpdb->get_results( $wpdb->prepare( $query, $like ) );
+				$placeholders = $count = [];
+				foreach ( $results as $data ) {
+					$display_name = $this->getDisplayNameFromBasename( $data->filename );
+					$count[ $display_name ] ++;
+					$averages[ $data->pid ] = [
+					  'num_votes'    => $data->num_votes,
+					  'average_full' => $data->average_full,
+					  'average'      => $data->average,
+					  'filename'     => $data->filename,
+					  'display_name' => $display_name,
+					  'path'         => $data->path,
+					  'current'      => $count[ $display_name ],
+					];
+					$placeholders[]         = "%d";
+				}
+
+				$query   = "
+                    SELECT p.pid, v.user_id, u.user_nicename, v.vote 
+                    FROM {$wpdb->prefix}bspf_votes v
+                    INNER JOIN {$wpdb->prefix}users u ON u.ID = v.user_id
+                    INNER JOIN {$wpdb->prefix}ngg_pictures p ON p.pid = v.pid
+                    INNER JOIN {$wpdb->prefix}ngg_gallery g ON g.gid = p.galleryid
+                      AND p.pid IN (" . implode( ",", $placeholders ) . ")
+                    ORDER BY u.user_nicename
+                ";
+				$results = $wpdb->get_results( $wpdb->prepare( $query, array_keys( $averages ) ) );
+				foreach ( $results as $data ) {
+					$averages[ $data->pid ]['users'][] = [
+					  'username' => ucfirst( $data->user_nicename ),
+					  'vote'     => $data->vote,
+					];
+				}
+
+				foreach ( $averages as $pid => $data ) {
+					$averages[ $pid ]['count'] = $count[ $data['display_name'] ];
+				}
+			} elseif ( $type == 'public' ) {
+				$query   = "
+                    SELECT COUNT(*) as num, p.filename, g.path
+                    FROM {$wpdb->prefix}bspf_votes v
+                    INNER JOIN {$wpdb->prefix}ngg_pictures p ON p.pid = v.pid
+                    INNER JOIN {$wpdb->prefix}ngg_gallery g ON g.gid = p.galleryid
+                    WHERE user_id = 0
+                      AND g.path LIKE %s
+                    GROUP BY v.pid
+                    ORDER BY num DESC
+                    LIMIT 0,3
+                ";
+				$like    = '%' . $wpdb->esc_like( date( 'Y' ) . '/' . $category . '-singles-submission' ) . '%';
+				$results = $wpdb->get_results( $wpdb->prepare( $query, $like ) );
+				foreach ( $results as $data ) {
+					$display_name = $this->getDisplayNameFromBasename( $data->filename );
+					$averages[]   = [
+					  'votes'        => $data->num,
+					  'filename'     => $data->filename,
+					  'display_name' => $display_name,
+					  'path'         => $data->path,
+					];
+				}
+			}
+		} elseif ( $group == 'series' && $type == 'private' ) {
+			$query        = "
+                SELECT COUNT(*) as num_votes, AVG(v.vote) as average_full, AVG(IF(v.vote < 0, 0, v.vote)) as average, g.gid, g.title, g.path
+                FROM {$wpdb->prefix}bspf_votes v
+                INNER JOIN {$wpdb->prefix}ngg_gallery g ON g.gid = v.gid
+                WHERE v.gid <> 0 
+                  AND v.user_id <> 0 
+                  AND g.path LIKE %s
+                GROUP BY g.gid HAVING " . ( ( $category == 'international' ) ? "average_full >= 2.75" : "average >= 2.25" ) . "
+                ORDER BY average_full DESC
+            ";
+			$like         = '%' . $wpdb->esc_like( 'gallery-curator/' . date( 'Y' ) . '/' . $category . '-series-submission' ) . '%';
+			$results      = $wpdb->get_results( $wpdb->prepare( $query, $like ) );
+			$placeholders = [];
+			foreach ( $results as $data ) {
+				$averages[ $data->gid ] = [
+				  'num_votes'    => $data->num_votes,
+				  'average_full' => $data->average_full,
+				  'average'      => $data->average,
+				  'title'        => $data->title,
+				  'display_name' => $this->getDisplayNameFromBasename( $data->title ),
+				  'path'         => $data->path,
+				];
+				$placeholders[]         = "%d";
+			}
+
+			$implode = implode( ",", $placeholders );
+			$keys    = array_keys( $averages );
+			$query   = "
+                SELECT g.gid, v.user_id, u.user_nicename, v.vote 
+                FROM {$wpdb->prefix}bspf_votes v
+                INNER JOIN {$wpdb->prefix}users u ON u.ID = v.user_id
+                INNER JOIN {$wpdb->prefix}ngg_gallery g ON g.gid = v.gid
+                  AND g.gid IN (" . $implode . ")
+                ORDER BY u.user_nicename
+            ";
+			$results = $wpdb->get_results( $wpdb->prepare( $query, $keys ) );
+			foreach ( $results as $data ) {
+				$averages[ $data->gid ]['users'][] = [
+				  'username' => ucfirst( $data->user_nicename ),
+				  'vote'     => $data->vote,
+				];
+			}
+
+			$query   = "
+			    SELECT galleryid, filename
+			    FROM {$wpdb->prefix}ngg_pictures
+			    WHERE galleryid IN (" . $implode . ")
+			    ORDER BY filename
+			";
+			$results = $wpdb->get_results( $wpdb->prepare( $query, $keys ) );
+			foreach ( $results as $data ) {
+				$averages[ $data->galleryid ]['pictures'][] = $data->filename;
+			}
+		}
+
+		return $averages;
+	}
+
+	/**
+	 * Given a vote, return the icons related.
+	 *
+	 * @param integer $vote the vote from -2 to 5.
+	 *
+	 * @return string the HTML of the icons.
+	 */
+	public function getVoteIcon( $vote ) {
+		$star  = '<i class="fa fa-star" aria-hidden="true"></i>';
+		$icons = [];
+		switch ( $vote ) {
+			case - 2:
+				$icons = [ '<i class="fa fa-flag" aria-hidden="true"></i>' ];
+				break;
+			case - 1:
+				$icons = [ '<i class="fa fa-times-circle" aria-hidden="true"></i>' ];
+				break;
+			case 0:
+				$icons = [ '<i class="fa fa-star-o" aria-hidden="true"></i>' ];
+				break;
+			case 1:
+				$icons = [ $star ];
+				break;
+			case 2:
+				$icons = [ $star, $star ];
+				break;
+			case 3:
+				$icons = [ $star, $star, $star ];
+				break;
+			case 4:
+				$icons = [ $star, $star, $star, $star ];
+				break;
+			case 5:
+				$icons = [ $star, $star, $star, $star, $star ];
+				break;
+		}
+
+		return implode( " ", $icons );
 	}
 
 	/**
@@ -1338,6 +1609,26 @@ class BSPFUtilitiesClass {
 		$pages .= '<p class="bspf-filter-current-page">Currently viewing page ' . $page . ' of ' . ( $num ? $num : 1 ) . '</p>';
 
 		return $pages;
+	}
+
+	/**
+	 * Display the human readable name from a filename.
+	 *
+	 * @param string $basename
+	 *
+	 * @return string the human readable version.
+	 */
+	public function getDisplayNameFromBasename( $basename ) {
+		return trim( ucwords( preg_replace( '/[0-9]+/', '', str_replace( [
+		  '_',
+		  '-',
+		  '.jpg',
+		  '.JPG',
+		  '.jpeg',
+		  '.JPEG',
+		  'INT',
+		  'BRU'
+		], [ ' ', ' ', '', '', '', '' ], $basename ) ) ) );
 	}
 
 	/**
