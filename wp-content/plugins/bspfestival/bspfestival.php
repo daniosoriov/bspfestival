@@ -116,12 +116,14 @@ class BSPFPluginClass {
 		  'category' => 'international',
 		  'group'    => 'singles',
 		  'type'     => 'public',
+		  'year'     => 2016,
 		  'gid'      => 0,
 		  'stats'    => 0,
 		], $atts, $tag );
 		$category = $atts['category'];
 		$group    = $atts['group'];
 		$type     = $atts['type'];
+		$year     = $atts['year'];
 		$gid      = $atts['gid'];
 		$stats    = $atts['stats'];
 
@@ -154,24 +156,33 @@ class BSPFPluginClass {
 			}
 			$bspf_users = [ 1, 13, 14, 15 ];
 			if ( in_array( $user->ID, $bspf_users ) ) {
-				return $this->BSPFLoadStats( $category, $group, $type );
+				$content = $this->BSPFLoadStats( 'international', 'singles', 'private' );
+				$content .= $this->BSPFLoadStats( 'international', 'series', 'private' );
+				$content .= $this->BSPFLoadStats( 'brussels', 'singles', 'private' );
+				$content .= $this->BSPFLoadStats( 'brussels', 'series', 'private' );
+				$content .= $this->BSPFLoadStats( 'international', 'singles', 'public' );
+				$content .= $this->BSPFLoadStats( 'brussels', 'singles', 'public' );
+
+				return $content;
 			} else {
 				return '<div class="center"><p>&nbsp;</p><p>Sorry, you do not have access to this page.</p></div>';
 			}
 		}
-		$limit = new DateTime( '2017-09-03' );
-		if ( $today > $limit ) {
-			return '<div class="center"><p>Voting is now closed.</p></div>';
+		if ( $type == 'public' ) {
+			$limit = new DateTime( '2017-09-03' );
+			if ( $today > $limit ) {
+				return '<div class="center"><p>Voting is now closed.</p></div>';
+			}
+			// If the page is loaded with a single image to see, we load the image and the gallery related to it.
+			$pid = ( isset( $_GET['pid'] ) ) ? (int) esc_attr( $_GET['pid'] ) : false;
+			if ( is_int( $pid ) ) {
+				$image_data = $this->BSPFLoadSinglePhoto( $pid );
+				$content    .= $this->BSPFLoadSinglePhotoLayout( $image_data );
+			}
 		}
 
-		// If the page is loaded with a single image to see, we load the image and the gallery related to it.
-		$pid = ( isset( $_GET['pid'] ) ) ? (int) esc_attr( $_GET['pid'] ) : false;
-		if ( is_int( $pid ) ) {
-			$image_data = $this->BSPFLoadSinglePhoto( $pid );
-			$content    .= $this->BSPFLoadSinglePhotoLayout( $image_data );
-		}
-		// Load the gallery to vote.
-		$content .= ( $group == 'singles' ) ? $this->BSPFLoadPhotos( $category, $type, $gid ) : $this->BSPFLoadSeries( $category );
+		// Load the gallery.
+		$content .= ( $group == 'singles' ) ? $this->BSPFLoadPhotos( $category, $type, $gid ) : $this->BSPFLoadSeries( $category, $type, $year );
 
 		return $content;
 	}
@@ -218,13 +229,13 @@ class BSPFPluginClass {
 		} elseif ( $type == 'private' ) {
 			$content .= '
                         <th><strong>' . ( ( $group == 'singles' ) ? 'Picture' : 'Series' ) . '</strong></th>
-                        <th><strong>Author</strong></th>
-                        <th><strong>Average</strong></th>
-                        <th><strong>Stats</strong></th>
+                        <th><strong>Details</strong></th>
+                        <th><strong>Votes</strong></th>
                     </tr>
                 </thead>
                 <tbody>
             ';
+			$count   = 0;
 			foreach ( $averages as $data ) {
 				$work = '';
 				if ( $group == 'singles' ) {
@@ -241,11 +252,18 @@ class BSPFPluginClass {
 					$users .= '<tr><td class="">' . $user['username'] . '</td><td>' . $uti->getVoteIcon( $user['vote'] ) . '</td></tr>';
 				}
 				$users   .= '</tbody></table>';
+				$stats   = '
+                    <ul>
+                        <li><strong>#:</strong> ' . ++ $count . '</li>
+                        <li><strong>Avg:</strong> ' . ( ( $category == 'international' ) ? $data['average_full'] : $data['average'] ) . '</li>
+                        <li><strong>By:</strong> ' . $data['display_name'] . ( ( $data['count'] ) ? ' (' . $data['current'] . ' of ' . $data['count'] . ')' : '' ) . '</li>
+                        ' . ( $data['filename'] ? '<li><strong>File:</strong> ' . $data['filename'] . '</li>' : '' ) . '
+                    </ul>
+                ';
 				$content .= '
                     <tr>
                         <td class="image">' . $work . '</td>
-                        <td>' . $data['display_name'] . ( ( $data['count'] ) ? ' (' . $data['current'] . '/' . $data['count'] . ')' : '' ) . '</td>
-                        <td>' . $data['average_full'] . '</td>
+                        <td>' . $stats . '</td>
                         <td>' . $users . '</td>
                     </tr>
                 ';
@@ -331,33 +349,53 @@ class BSPFPluginClass {
 	 * Load the HTML for the series gallery.
 	 *
 	 * @param string $category international or singles.
+	 * @param string $type private or finalist.
+	 * @param int $year the year of the galleries.
 	 *
 	 * @return string the HTML.
 	 */
-	function BSPFLoadSeries( $category = 'international' ) {
+	function BSPFLoadSeries( $category = 'international', $type = 'private', $year = 2016 ) {
 		$content   = '';
-		$user      = wp_get_current_user();
 		$uti       = new BSPFUtilitiesClass();
-		$galleries = $uti->getSeries( $category );
-		$count     = count( $galleries );
-		$flagged   = $uti->getSeriesFlagged( $user->ID );
-		$stats     = $uti->getSeriesVoteStats( $user->ID, $category );
-		$content   .= '
-            <h2 class="center">Curator gallery</h2>
-            <h3 class="center">' . ucwords( $category . ' Series' ) . '</h3>
-            <h4 class="center">Welcome ' . $user->display_name . '</h4>
-		';
-		$content   .= $this->BSPFGetVotingBar( $stats, $count, $category, 'series' );
-		$content   .= '<div class="bspf-gallery-ajax">';
-		$count     = 0;
-		foreach ( $galleries as $gid => $gallery ) {
-			if ( in_array( $gid, (array) $flagged ) ) {
-				$gallery['flag'] = true;
+		$galleries = $uti->getSeries( $category, $type, $year );
+		if ( $type == 'private' ) {
+			$user    = wp_get_current_user();
+			$count   = count( $galleries );
+			$flagged = $uti->getSeriesFlagged( $user->ID );
+			$stats   = $uti->getSeriesVoteStats( $user->ID, $category );
+			$content .= '
+                <h2 class="center">Curator gallery</h2>
+                <h3 class="center">' . ucwords( $category . ' Series' ) . '</h3>
+                <h4 class="center">Welcome ' . $user->display_name . '</h4>
+            ';
+			$content .= $this->BSPFGetVotingBar( $stats, $count, $category, 'series' );
+			$content .= '<div class="bspf-gallery-ajax">';
+			$count   = 0;
+			foreach ( $galleries as $gid => $gallery ) {
+				if ( in_array( $gid, (array) $flagged ) ) {
+					$gallery['flag'] = true;
+				}
+				$content .= $this->BSPFGetSeriesHTML( $gallery, $category, 0, $count ++ );
 			}
-			$content .= $this->BSPFGetSeriesHTML( $gallery, $category, 0, $count ++ );
+			$content .= '</div>';
+			$content .= $this->BSPFGetVotingBar( $stats, $count, $category, 'series', 'down' );
+		} elseif ( $type == 'finalist' ) {
+			$content .= '<div class="row">';
+			$content .= '<div class="col-sm-1"></div>';
+			$content .= '<div class="col-sm-10">';
+			foreach ( $galleries as $gid => $gallery ) {
+				$path    = get_site_url() . '/' . $gallery['path'];
+				$content .= '<div class="series-container"><div class="series-wrapper series-wrapper-finalist">';
+				$images  = $this->BSPFGetSeriesImages( $gid );
+				foreach ( $images as $filename ) {
+					$img_src = $path . '/' . $filename;
+					$content .= '<div class="series-img series-img-finalist" data-src="' . $img_src . '"><img src="' . $img_src . '"></div>';
+				}
+				$content .= '</div>';
+				$content .= '<div class="series-desc-finalist center">' . $gallery['title'] . '</div></div>';
+			}
+			$content .= '<div class="col-sm-1"></div>';
 		}
-		$content .= '</div>';
-		$content .= $this->BSPFGetVotingBar( $stats, $count, $category, 'series', 'down' );
 
 		return $content;
 	}
@@ -436,7 +474,7 @@ class BSPFPluginClass {
 	 * Creates the HTML code to display the photos for the short code.
 	 *
 	 * @param string $category international or brussels.
-	 * @param string $type public or private.
+	 * @param string $type public, private or finalist.
 	 * @param int $gid the id of the gallery.
 	 *
 	 * @return string the content of the page.
@@ -499,9 +537,7 @@ class BSPFPluginClass {
 			$content .= '<div class="row">';
 			$content .= '<div class="col-sm-1"></div>';
 			$content .= '<div class="col-sm-10" id="grid" data-columns>';
-		}
-
-		if ( $type == 'private' ) {
+		} elseif ( $type == 'private' ) {
 			$stats   = $uti->getSinglesVoteStats( $user->ID, $gid );
 			$content .= '<h2 class="center">Curator gallery</h2>';
 			$content .= '<h3 class="center">' . ucwords( $category . ' Singles' ) . '</h3>';
@@ -511,6 +547,11 @@ class BSPFPluginClass {
 			$content .= '<div class="row">';
 			$content .= '<div class="col-sm-1"></div>';
 			$content .= '<div class="col-sm-10 bspf-gallery-ajax">';
+		} elseif ( $type == 'finalist' ) {
+			$content .= '<div class="bspf-gallery-wrapper-finalist">';
+			$content .= '<div class="row">';
+			$content .= '<div class="col-sm-1"></div>';
+			$content .= '<div class="col-sm-10" id="grid-finalist">';
 		}
 
 		$count = 0;
@@ -563,8 +604,24 @@ class BSPFPluginClass {
                         </div>
                     </div>
                 ';
-			} else {
+			} elseif ( $type == 'private' ) {
 				$content .= $this->BSPFGetImageHTML( $pid, $img, $path, $img['vote'], $count ++ );
+			} elseif ( $type == 'finalist' ) {
+				$photo_name = $img['name'];
+				$content    .= '
+                    <div class="grid-item-finalist center">
+                        <div class="img-wrapper" 
+                            data-src="' . $img_src . '" 
+                            data-sub-html="<p>' . $photo_name . '</p>"
+                            >
+                            <img class="img-responsive img-bspf img-bspf-finalist" 
+                                src="' . $img_src . '" title="' . $photo_name . '" alt="' . $photo_name . '">
+                        </div>
+                        <div class="img-desc-finalist center">
+                            ' . $photo_name . '
+                        </div>
+                    </div>
+                ';
 			}
 		}
 		$content .= '</div>';
@@ -792,23 +849,37 @@ class BSPFPluginClass {
 
 			return $images;
 
-		}
-
-		// If public, select 45 random photos.
-		$query  = "
-            SELECT pid, filename
-            FROM {$wpdb->prefix}ngg_pictures 
-            WHERE galleryid = %d
-            ORDER BY rand()
-            LIMIT 45
-        ";
-		$result = $wpdb->get_results( $wpdb->prepare( $query, $gid ) );
-		$uti    = new BSPFUtilitiesClass();
-		foreach ( $result as $data ) {
-			$images[ $data->pid ] = [
-			  'filename' => $data->filename,
-			  'name'     => $uti->getDisplayNameFromBasename( $data->filename ),
-			];
+		} elseif ( $type == 'public' ) {
+			// If public, select 45 random photos.
+			$query  = "
+                SELECT pid, filename
+                FROM {$wpdb->prefix}ngg_pictures 
+                WHERE galleryid = %d
+                ORDER BY rand()
+                LIMIT 45
+            ";
+			$result = $wpdb->get_results( $wpdb->prepare( $query, $gid ) );
+			$uti    = new BSPFUtilitiesClass();
+			foreach ( $result as $data ) {
+				$images[ $data->pid ] = [
+				  'filename' => $data->filename,
+				  'name'     => $uti->getDisplayNameFromBasename( $data->filename ),
+				];
+			}
+		} elseif ( $type == 'finalist' ) {
+			$query  = "
+                SELECT pid, filename, alttext 
+                FROM {$wpdb->prefix}ngg_pictures 
+                WHERE galleryid = %d 
+                ORDER BY sortorder DESC, alttext ASC
+            ";
+			$result = $wpdb->get_results( $wpdb->prepare( $query, $gid ) );
+			foreach ( $result as $data ) {
+				$images[ $data->pid ] = [
+				  'filename' => $data->filename,
+				  'name'     => $data->alttext,
+				];
+			}
 		}
 
 		//echo '<pre>Images all ' . print_r( $images, 1 ) . '</pre>';
@@ -841,6 +912,9 @@ class BSPFPluginClass {
 			wp_register_script( 'jquery', 'https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js', [], '3.2.1' );
 		}
 		$pages = [
+		  25295, // Finalists 2016.
+		  25833, // Finalists 2016 French.
+		  25836, // Finalists 2016 Dutch.
 		  'statistics',
 		  'voting',
 		  'curator-voting',
@@ -917,7 +991,7 @@ class BSPFPluginClass {
 				}
 				$stats = $uti->getSinglesVoteStats( $user->ID, $gid );
 			} else {
-				$galleries = $uti->getSeries( $category, $filter, $page );
+				$galleries = $uti->getSeries( $category, 'private', date( 'Y' ), $filter, $page );
 				$flagged   = $uti->getSeriesFlagged( $user->ID );
 				foreach ( $galleries as $gid => $gallery ) {
 					if ( in_array( $gid, (array) $flagged ) ) {
@@ -1286,35 +1360,49 @@ class BSPFUtilitiesClass {
 	 * Get the galleries of the series.
 	 *
 	 * @param string $category international or brussels.
+	 * @param string $type private or finalist.
+	 * @param int $year the year of the galleries.
 	 * @param int $vote filter the series by vote.
 	 * @param int $page filter the series by the page.
 	 *
 	 * @return array|null|object an associative array with the galleries.
 	 */
-	public function getSeries( $category = 'international', $vote = 0, $page = 1 ) {
+	public function getSeries( $category = 'international', $type = 'private', $year = 2016, $vote = 0, $page = 1 ) {
 		global $wpdb;
-		$query     = "
-	        SELECT gid, path
+		$order_by = ( $type == 'finalist' ) ? "ORDER BY pageid DESC, title ASC" : '';
+		$query    = "
+	        SELECT gid, path, title
 	        FROM {$wpdb->prefix}ngg_gallery
 	        WHERE path LIKE %s
+	        " . $order_by . "
 	    ";
-		$like      = '%' . $wpdb->esc_like( 'gallery-curator/' . date( 'Y' ) . '/' . $category . '-series-submission' ) . '%';
-		$galleries = $wpdb->get_results( $wpdb->prepare( $query, $like ) );
+		if ( $type == 'private' ) {
+			$like      = '%' . $wpdb->esc_like( 'gallery-curator/' . date( 'Y' ) . '/' . $category . '-series-submission' ) . '%';
+			$galleries = $wpdb->get_results( $wpdb->prepare( $query, $like ) );
 
-		$new   = [];
-		$votes = $this->getSeriesVotes( wp_get_current_user()->ID );
-		foreach ( $galleries as $data ) {
-			if ( $vote == 0 ) {
-				if ( !array_key_exists( $data->gid, $votes ) ) {
-					$new[ $data->gid ] = (array) $data;
-				}
-			} else {
-				if ( $votes[ $data->gid ] == $vote ) {
-					$new[ $data->gid ] = (array) $data;
+			$new   = [];
+			$votes = $this->getSeriesVotes( wp_get_current_user()->ID );
+			foreach ( $galleries as $data ) {
+				if ( $vote == 0 ) {
+					if ( !array_key_exists( $data->gid, $votes ) ) {
+						$new[ $data->gid ] = (array) $data;
+					}
+				} else {
+					if ( $votes[ $data->gid ] == $vote ) {
+						$new[ $data->gid ] = (array) $data;
+					}
 				}
 			}
+			$galleries = array_slice( $new, ( ( $page - 1 ) * 10 ), 10, true );
+		} elseif ( $type == 'finalist' ) {
+			$cat       = ( $category == 'international' ) ? 'int' : 'bru';
+			$like      = '%' . $wpdb->esc_like( 'gallery/' . $year . '/' . $cat . '_final' ) . '%';
+			$results   = $wpdb->get_results( $wpdb->prepare( $query, $like ) );
+			$galleries = [];
+			foreach ( $results as $data ) {
+				$galleries[ $data->gid ] = (array) $data;
+			}
 		}
-		$galleries = array_slice( $new, ( ( $page - 1 ) * 10 ), 10, true );
 
 		return $galleries;
 	}
@@ -1390,8 +1478,8 @@ class BSPFUtilitiesClass {
                     WHERE v.pid <> 0 
                       AND v.user_id <> 0
                       AND g.path LIKE %s
-                    GROUP BY p.pid HAVING " . ( ( $category == 'international' ) ? "average_full >= 2.25" : "average >= 2.25" ) . "
-                    ORDER BY average_full DESC
+                    GROUP BY p.pid HAVING " . ( ( $category == 'international' ) ? "average_full >= 2.4" : "average_full >= 1.75" ) . "
+                    ORDER BY average_full DESC, average ASC
                 ";
 				$like         = '%' . $wpdb->esc_like( date( 'Y' ) . '/' . $category . '-singles-submission' ) . '%';
 				$results      = $wpdb->get_results( $wpdb->prepare( $query, $like ) );
@@ -1463,8 +1551,8 @@ class BSPFUtilitiesClass {
                 WHERE v.gid <> 0 
                   AND v.user_id <> 0 
                   AND g.path LIKE %s
-                GROUP BY g.gid HAVING " . ( ( $category == 'international' ) ? "average_full >= 2.75" : "average >= 2.25" ) . "
-                ORDER BY average_full DESC
+                GROUP BY g.gid HAVING " . ( ( $category == 'international' ) ? "average_full >= 2.75" : "average_full >= 2" ) . "
+                ORDER BY average_full DESC, average ASC
             ";
 			$like         = '%' . $wpdb->esc_like( 'gallery-curator/' . date( 'Y' ) . '/' . $category . '-series-submission' ) . '%';
 			$results      = $wpdb->get_results( $wpdb->prepare( $query, $like ) );

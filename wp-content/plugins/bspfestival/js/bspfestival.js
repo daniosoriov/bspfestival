@@ -32,6 +32,21 @@ jQuery(document).ready(function ($) {
         });
     }
 
+    var $galleryFinalist = $('.bspf-gallery-wrapper-finalist');
+    $galleryFinalist.lightGallery({
+        selector: '.img-wrapper',
+        mousewheel: false,
+        download: false,
+        thumbnail: false,
+        autoplay: false,
+        fullScreen: false,
+        zoom: false,
+        facebook: false,
+        twitter: false,
+        googlePlus: false,
+        pinterest: false,
+        loop: false,
+    });
 
     var $gallery = $('.bspf-gallery-wrapper');
 
