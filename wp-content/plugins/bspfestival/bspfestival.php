@@ -169,7 +169,7 @@ class BSPFPluginClass {
 			}
 		}
 		if ( $type == 'public' ) {
-			$limit = new DateTime( '2017-09-03' );
+			$limit = new DateTime( '2017-09-04' );
 			if ( $today > $limit ) {
 				return '<div class="center"><p>Voting is now closed.</p></div>';
 			}
@@ -913,8 +913,12 @@ class BSPFPluginClass {
 		}
 		$pages = [
 		  25295, // Finalists 2016.
+		  31077, // Finalists 2017.
 		  25833, // Finalists 2016 French.
+		  31464, // Finalists 2017 French.
 		  25836, // Finalists 2016 Dutch.
+		  31467, // Finalists 2017 Dutch.
+		  31483, // Finalists 2017 private.
 		  'statistics',
 		  'voting',
 		  'curator-voting',
@@ -1478,7 +1482,7 @@ class BSPFUtilitiesClass {
                     WHERE v.pid <> 0 
                       AND v.user_id <> 0
                       AND g.path LIKE %s
-                    GROUP BY p.pid HAVING " . ( ( $category == 'international' ) ? "average_full >= 2.4" : "average_full >= 1.75" ) . "
+                    GROUP BY p.pid HAVING " . ( ( $category == 'international' ) ? "average_full >= 2.4" : "average_full >= 1.7" ) . "
                     ORDER BY average_full DESC, average ASC
                 ";
 				$like         = '%' . $wpdb->esc_like( date( 'Y' ) . '/' . $category . '-singles-submission' ) . '%';
