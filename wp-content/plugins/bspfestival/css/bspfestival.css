@@ -195,7 +195,7 @@
     margin: 0 auto;
 }
 
-.img-desc, .series-desc {
+.img-desc, .series-desc, .gallery-desc {
     text-align: center;
     padding-top: 10px;
     color: #888;
@@ -222,7 +222,7 @@
     font-size: 24px;
 }
 
-.series-desc-finalist {
+.series-desc-finalist, .gallery-desc {
     font-size: 85%;
     color: #666;
     margin-bottom: 50px !important;
@@ -263,7 +263,7 @@
     align-items: center;
 }
 
-.series-wrapper-finalist {
+.series-wrapper-finalist, .gallery-wrapper {
     padding: 30px 0 10px;
     justify-content: space-around;
     background-color: #f1f1f1;
@@ -278,11 +278,17 @@
     margin: 2px;
 }
 
-.series-img-finalist {
+.series-img-finalist, .gallery-img {
     padding: 0;
     border: 0;
     margin: 0 0 20px 0;
     max-width: 175px;
+}
+
+.gallery-img {
+    max-width: 180px;
+    max-height: 120px;
+    overflow: hidden;
 }
 
 .bspf-stats-wrapper {

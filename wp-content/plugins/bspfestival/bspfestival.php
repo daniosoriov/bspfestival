@@ -12,8 +12,6 @@
 /**
  * TODO: put some of the functionality on an admin page so it's scalable, for example indicating the ids of the
  * galleries.
- * TODO: create a gallery to display the finalists, use this gallery for the page of the finalists from 2016
- * and 2017.
  * TODO: create a specific page for each submission so the voting can be shared and all social media channels
  * use the right photo.
  */
@@ -31,6 +29,7 @@ class BSPFPluginClass {
 		register_activation_hook( __FILE__, array( &$this, 'BSPFInstall' ) );
 
 		add_shortcode( 'bspf', array( $this, 'BSPFShortcode' ) );
+		add_shortcode( 'bspf_gallery', array( $this, 'BSPFShortcodeGallery' ) );
 
 		add_filter( 'language_attributes', array( &$this, 'BSPFDoctypeOpengraph' ) );
 		//add_action( 'wp_head', array( $this, 'BSPFFacebookOpengraph' ) );
@@ -99,6 +98,39 @@ class BSPFPluginClass {
 
 		require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
 		dbDelta( $sql );*/
+	}
+
+	function BSPFShortcodeGallery( $atts = [], $content = null, $tag = '' ) {
+		$content = '';
+		$atts    = shortcode_atts( [
+		  'gid' => 0,
+		], $atts, $tag );
+		$gid     = $atts['gid'];
+
+		$uti           = new BSPFUtilitiesClass();
+		$gallery_path  = $uti->getGalleryPath( $gid );
+		$gallery_title = $uti->getGalleryTitle( $gid );
+
+		$content .= '<div class="row">';
+		$content .= '<div class="col-sm-1"></div>';
+		$content .= '<div class="col-sm-10">';
+
+		$path    = get_site_url() . '/' . $gallery_path;
+		$content .= '<div class="gallery-container">';
+		$content .= '<div class="series-wrapper gallery-wrapper">';
+		$images  = $uti->getGalleryImages( $gid );
+		foreach ( $images as $filename ) {
+			$img_src = $path . '/' . $filename;
+			$content .= '<div class="series-img gallery-img" data-src="' . $img_src . '"><img src="' . $img_src . '"></div>';
+		}
+		$content .= '</div>';
+		$content .= '<div class="gallery-desc center">' . $gallery_title . '</div>';
+		$content .= '</div>';
+		$content .= '</div>';
+		$content .= '<div class="col-sm-1"></div>';
+		$content .= '</div>';
+
+		return $content;
 	}
 
 	/**
@@ -912,6 +944,7 @@ class BSPFPluginClass {
 			wp_register_script( 'jquery', 'https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js', [], '3.2.1' );
 		}
 		$pages = [
+		  32204, // Workshop galleries.
 		  25295, // Finalists 2016.
 		  31077, // Finalists 2017.
 		  25833, // Finalists 2016 French.
@@ -1358,6 +1391,53 @@ class BSPFUtilitiesClass {
 		$query = "SELECT galleryid FROM {$wpdb->prefix}ngg_pictures WHERE pid = %d";
 
 		return (integer) $wpdb->get_var( $wpdb->prepare( $query, $pid ) );
+	}
+
+	/**
+	 * Get the path of a gallery.
+	 *
+	 * @param int $gid the id of the gallery.
+	 *
+	 * @return string the path of the gallery.
+	 */
+	public function getGalleryPath( $gid ) {
+		global $wpdb;
+		$query = "SELECT path FROM {$wpdb->prefix}ngg_gallery WHERE gid = %d";
+
+		return $wpdb->get_var( $wpdb->prepare( $query, $gid ) );
+	}
+
+	/**
+	 * Get the title of a gallery.
+	 *
+	 * @param int $gid the id of the gallery.
+	 *
+	 * @return null|string
+	 */
+	public function getGalleryTitle( $gid ) {
+		global $wpdb;
+		$query = "SELECT title FROM {$wpdb->prefix}ngg_gallery WHERE gid = %d";
+
+		return $wpdb->get_var( $wpdb->prepare( $query, $gid ) );
+	}
+
+	/**
+	 * Get the filename of the images inside a gallery, useful for the series.
+	 *
+	 * @param int $gid the id of the gallery.
+	 *
+	 * @return array an array of objects with the filename.
+	 */
+	public function getGalleryImages( $gid ) {
+		global $wpdb;
+		$query = "
+	        SELECT filename
+            FROM {$wpdb->prefix}ngg_pictures
+            WHERE galleryid = %d
+            ORDER BY filename
+	    ";
+
+		return $wpdb->get_col( $wpdb->prepare( $query, $gid ) );
 	}
 
 	/**
