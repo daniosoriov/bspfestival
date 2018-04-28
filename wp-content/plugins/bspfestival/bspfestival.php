@@ -17,7 +17,7 @@
  */
 
 // exit if accessed directly
-if ( !defined( 'ABSPATH' ) ) {
+if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
@@ -103,7 +103,7 @@ class BSPFPluginClass {
 	function BSPFShortcodeGallery( $atts = [], $content = null, $tag = '' ) {
 		$content = '';
 		$atts    = shortcode_atts( [
-		  'gid' => 0,
+			'gid' => 0,
 		], $atts, $tag );
 		$gid     = $atts['gid'];
 
@@ -145,12 +145,12 @@ class BSPFPluginClass {
 	function BSPFShortcode( $atts = [], $content = null, $tag = '' ) {
 		$content  = '';
 		$atts     = shortcode_atts( [
-		  'category' => 'international',
-		  'group'    => 'singles',
-		  'type'     => 'public',
-		  'year'     => 2016,
-		  'gid'      => 0,
-		  'stats'    => 0,
+			'category' => 'international',
+			'group'    => 'singles',
+			'type'     => 'public',
+			'year'     => 2016,
+			'gid'      => 0,
+			'stats'    => 0,
 		], $atts, $tag );
 		$category = $atts['category'];
 		$group    = $atts['group'];
@@ -161,13 +161,13 @@ class BSPFPluginClass {
 
 		$today = new DateTime();
 		$user  = wp_get_current_user();
-		if ( $type == 'private' && !$stats ) {
-			if ( !$user || !is_user_logged_in() ) {
+		if ( $type == 'private' && ! $stats ) {
+			if ( ! $user || ! is_user_logged_in() ) {
 				return '<p>&nbsp;</p><p class="center">You must be <a href="' . wp_login_url( get_permalink() ) . '">logged in</a> to access this page.</p>';
 			}
 			$int_users = [ 13, 14, 15, 16, 17, 18, 19 ];
 			$bru_users = [ 13, 14, 15, 16, 17, 20, 21 ];
-			if ( ( $category == 'international' && !in_array( $user->ID, $int_users ) ) || ( $category == 'brussels' && !in_array( $user->ID, $bru_users ) ) ) {
+			if ( ( $category == 'international' && ! in_array( $user->ID, $int_users ) ) || ( $category == 'brussels' && ! in_array( $user->ID, $bru_users ) ) ) {
 				$inv       = ( $category == 'international' ) ? 'Brussels' : 'International';
 				$url_sin   = ( $category == 'international' ) ? get_page_link( 30793 ) : get_page_link( 25693 );
 				$url_ser   = ( $category == 'international' ) ? get_page_link( 30809 ) : get_page_link( 30806 );
@@ -176,15 +176,25 @@ class BSPFPluginClass {
 				return '<div class="center"><p>&nbsp;</p><p>Sorry, you do not have access to this page.</p>' . $available . '</div>';
 			}
 
+			/*
 			$limit = new DateTime( '2017-08-21' );
 			if ( $today >= $limit ) {
 				wp_logout();
 
 				return '<div class="center"><p>&nbsp;</p><p>Sorry, you cannot access this page anymore. Voting has finished.</p>';
-			}
+			}*/
+			$category = 'international';
 		} elseif ( $stats && $user ) {
-			if ( !$user || !is_user_logged_in() ) {
+			if ( ! $user || ! is_user_logged_in() ) {
 				return '<p>&nbsp;</p><p class="center">You must be <a href="' . wp_login_url( get_permalink() ) . '">logged in</a> to access this page.</p>';
+			}
+			if ( $atts['category'] == 'worldsp' ) {
+				$worldsp_users = [ 1, 13, 23, 24 ];
+				if ( in_array( $user->ID, $worldsp_users ) ) {
+					$content = $this->BSPFLoadStats( 'worldsp' );
+
+					return $content;
+				}
 			}
 			$bspf_users = [ 1, 13, 14, 15 ];
 			if ( in_array( $user->ID, $bspf_users ) ) {
@@ -231,7 +241,7 @@ class BSPFPluginClass {
 	function BSPFLoadStats( $category = 'international', $group = 'singles', $type = 'private' ) {
 		$site_url = get_site_url();
 		$uti      = new BSPFUtilitiesClass();
-		$averages = $uti->getAverages( $category, $group, $type );
+		$averages = ( $category == 'worldsp' ) ? $uti->getWorldSPAverages( $category ) : $uti->getAverages( $category, $group, $type );
 		$content  = '
             <div class="bspf-stats-wrapper">
                 <h2 class="center">' . $type . ' - ' . $category . ' ' . $group . '</h2>
@@ -258,7 +268,7 @@ class BSPFPluginClass {
                     </tr>
                 ';
 			}
-		} elseif ( $type == 'private' ) {
+		} elseif ( $type == 'private' && $category != 'worldsp' ) {
 			$content .= '
                         <th><strong>' . ( ( $group == 'singles' ) ? 'Picture' : 'Series' ) . '</strong></th>
                         <th><strong>Details</strong></th>
@@ -288,6 +298,41 @@ class BSPFPluginClass {
                     <ul>
                         <li><strong>#:</strong> ' . ++ $count . '</li>
                         <li><strong>Avg:</strong> ' . ( ( $category == 'international' ) ? $data['average_full'] : $data['average'] ) . '</li>
+                        <li><strong>By:</strong> ' . $data['display_name'] . ( ( $data['count'] ) ? ' (' . $data['current'] . ' of ' . $data['count'] . ')' : '' ) . '</li>
+                        ' . ( $data['filename'] ? '<li><strong>File:</strong> ' . $data['filename'] . '</li>' : '' ) . '
+                    </ul>
+                ';
+				$content .= '
+                    <tr>
+                        <td class="image">' . $work . '</td>
+                        <td>' . $stats . '</td>
+                        <td>' . $users . '</td>
+                    </tr>
+                ';
+			}
+		} elseif ( $category == 'worldsp' ) {
+			$content .= '
+                        <th><strong>Picture</strong></th>
+                        <th><strong>Details</strong></th>
+                        <th><strong>Votes</strong></th>
+                    </tr>
+                </thead>
+                <tbody>
+            ';
+			$count   = 0;
+			foreach ( $averages as $data ) {
+				$work = '<img class="img-responsive img-stats" src="' . $site_url . '/' . $data['path'] . '/' . $data['filename'] . '">';
+
+				$users = '<table class="table table-responsive table-striped table-users"><tbody>';
+				foreach ( $data['users'] as $user ) {
+				    $username = $uti->getDisplayNameFromBasename($user['username']);
+					$users .= '<tr><td class="">' . $username . '</td><td>' . $uti->getVoteIcon( $user['vote'] ) . '</td></tr>';
+				}
+				$users   .= '</tbody></table>';
+				$stats   = '
+                    <ul>
+                        <li><strong>#:</strong> ' . ++ $count . '</li>
+                        <li><strong>Avg:</strong> ' . round( $data['average_full'], 2 ) . '</li>
                         <li><strong>By:</strong> ' . $data['display_name'] . ( ( $data['count'] ) ? ' (' . $data['current'] . ' of ' . $data['count'] . ')' : '' ) . '</li>
                         ' . ( $data['filename'] ? '<li><strong>File:</strong> ' . $data['filename'] . '</li>' : '' ) . '
                     </ul>
@@ -513,7 +558,7 @@ class BSPFPluginClass {
 	 */
 	function BSPFLoadPhotos( $category = 'international', $type = 'public', $gid = 0 ) {
 		$user     = wp_get_current_user();
-		$gid      = ( !$gid ) ? ( ( $category == 'international' ) ? 230 : 231 ) : $gid;
+		$gid      = ( ! $gid ) ? ( ( $category == 'international' ) ? 230 : 231 ) : $gid;
 		$voted    = [];
 		$page_url = get_permalink();
 		$path     = get_site_url() . '/' . $this->BSPFGetGalleryPath( $gid );
@@ -719,6 +764,7 @@ class BSPFPluginClass {
 	function BSPFFlaggedContent( $flag ) {
 		$cur = sprintf( _n( 'another curator', 'other %s curators', $flag ), $flag );
 
+		return '';
 		return '<p class="alert alert-danger"><i class="fa fa-exclamation-triangle"></i><span> Attention: flagged by ' . $cur . '!</span></p>';
 	}
 
@@ -894,8 +940,8 @@ class BSPFPluginClass {
 			$uti    = new BSPFUtilitiesClass();
 			foreach ( $result as $data ) {
 				$images[ $data->pid ] = [
-				  'filename' => $data->filename,
-				  'name'     => $uti->getDisplayNameFromBasename( $data->filename ),
+					'filename' => $data->filename,
+					'name'     => $uti->getDisplayNameFromBasename( $data->filename ),
 				];
 			}
 		} elseif ( $type == 'finalist' ) {
@@ -908,8 +954,8 @@ class BSPFPluginClass {
 			$result = $wpdb->get_results( $wpdb->prepare( $query, $gid ) );
 			foreach ( $result as $data ) {
 				$images[ $data->pid ] = [
-				  'filename' => $data->filename,
-				  'name'     => $data->alttext,
+					'filename' => $data->filename,
+					'name'     => $data->alttext,
 				];
 			}
 		}
@@ -944,21 +990,22 @@ class BSPFPluginClass {
 			wp_register_script( 'jquery', 'https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js', [], '3.2.1' );
 		}
 		$pages = [
-		  32204, // Workshop galleries.
-		  25295, // Finalists 2016.
-		  31077, // Finalists 2017.
-		  25833, // Finalists 2016 French.
-		  31464, // Finalists 2017 French.
-		  25836, // Finalists 2016 Dutch.
-		  31467, // Finalists 2017 Dutch.
-		  31483, // Finalists 2017 private.
-		  'statistics',
-		  'voting',
-		  'curator-voting',
-		  'brussels-singles-vote',
-		  'international-singles-vote',
-		  'brussels-singles-stemming',
-		  'international-singles-stemming'
+			32204, // Workshop galleries.
+			25295, // Finalists 2016.
+			31077, // Finalists 2017.
+			25833, // Finalists 2016 French.
+			31464, // Finalists 2017 French.
+			25836, // Finalists 2016 Dutch.
+			31467, // Finalists 2017 Dutch.
+			31483, // Finalists 2017 private.
+			32936, // Finalists 2018 Made in Bruxsel.
+			'statistics',
+			'voting',
+			'curator-voting',
+			'brussels-singles-vote',
+			'international-singles-vote',
+			'brussels-singles-stemming',
+			'international-singles-stemming'
 		];
 		if ( is_page( $pages ) ) {
 			wp_enqueue_style( 'bspfestival-stylesheet' );
@@ -966,8 +1013,8 @@ class BSPFPluginClass {
 			wp_enqueue_script( 'bspfestival-js' );
 			// Localize the script with new data
 			wp_localize_script( 'bspfestival-js', 'bspf_ajax', [
-			  'ajax_url' => admin_url( 'admin-ajax.php' ),
-			  'nonce'    => wp_create_nonce( $this->nonce ),
+				'ajax_url' => admin_url( 'admin-ajax.php' ),
+				'nonce'    => wp_create_nonce( $this->nonce ),
 			] );
 			/*wp_localize_script( 'bspfestival-js', 'wpApiSettings', [
 			  'root'  => esc_url_raw( rest_url() ),
@@ -997,9 +1044,9 @@ class BSPFPluginClass {
 			$is_voted = in_array( $pid, $voted );
 
 			echo json_encode( [
-			  'status'   => 'success',
-			  'is_voted' => $is_voted,
-			  'voted'    => $voted,
+				'status'   => 'success',
+				'is_voted' => $is_voted,
+				'voted'    => $voted,
 			] );
 		} else {
 			echo json_encode( [ 'status' => 'error', 'message' => 'Invalid request!' ] );
@@ -1040,10 +1087,10 @@ class BSPFPluginClass {
 			}
 
 			echo json_encode( [
-			  'status'  => 'success',
-			  'content' => $content,
-			  'text'    => $uti->getFilterViewingText( $count, $filter, $group ),
-			  'pages'   => $uti->getFilterPagesText( $stats, $filter, $group, $page ),
+				'status'  => 'success',
+				'content' => $content,
+				'text'    => $uti->getFilterViewingText( $count, $filter, $group ),
+				'pages'   => $uti->getFilterPagesText( $stats, $filter, $group, $page ),
 			] );
 		} else {
 			echo json_encode( [ 'status' => 'error', 'message' => 'Invalid request!' ] );
@@ -1065,7 +1112,7 @@ class BSPFPluginClass {
 			$category = $_POST['category'];
 
 			// Check that is a valid integer.
-			if ( !is_integer( $group_id ) || $group_id <= 0 ) {
+			if ( ! is_integer( $group_id ) || $group_id <= 0 ) {
 				echo json_encode( [ 'status' => 'warning', 'message' => 'Invalid id [01]!' ] );
 				wp_die(); // stop executing script
 			}
@@ -1078,7 +1125,7 @@ class BSPFPluginClass {
 				wp_die(); // stop executing script
 			}
 			// Check that the vote is a valid integer from -2 to 5.
-			if ( !is_integer( $vote ) || ( $vote < - 2 || $vote > 5 ) ) {
+			if ( ! is_integer( $vote ) || ( $vote < - 2 || $vote > 5 ) ) {
 				echo json_encode( [ 'status' => 'warning', 'message' => 'Invalid vote [03]!' ] );
 				wp_die(); // stop executing script
 			}
@@ -1139,35 +1186,35 @@ class BSPF_REST_Images extends WP_REST_Controller {
 	// Register our routes.
 	public function register_routes() {
 		register_rest_route( $this->namespace, '/' . $this->rest_base, array(
-		  array(
-			'methods'  => WP_REST_Server::READABLE,
-			'callback' => array( $this, 'get_items' ),
-		  ),
+			array(
+				'methods'  => WP_REST_Server::READABLE,
+				'callback' => array( $this, 'get_items' ),
+			),
 		) );
 		register_rest_route( $this->namespace, '/' . $this->rest_base . '/(?P<id>[\d]+)', array(
-		  array(
-			'methods'  => WP_REST_Server::READABLE,
-			'callback' => array( $this, 'get_item' ),
-		  ),
-		  array(
-			'methods'  => WP_REST_Server::EDITABLE,
-			'callback' => array( $this, 'update_item' ),
-			'args'     => array(
-			  'vote' => array(
-				'required'          => false,
-				'default'           => 5,
-				'description'       => 'The vote to assign.',
-				'type'              => 'integer',
-				'validate_callback' => function ( $param, $request, $key ) {
-					return is_numeric( $param );
-				}
-			  ),
+			array(
+				'methods'  => WP_REST_Server::READABLE,
+				'callback' => array( $this, 'get_item' ),
 			),
-		  ),
-		  array(
-			'methods'  => WP_REST_Server::DELETABLE,
-			'callback' => array( $this, 'delete_item' ),
-		  ),
+			array(
+				'methods'  => WP_REST_Server::EDITABLE,
+				'callback' => array( $this, 'update_item' ),
+				'args'     => array(
+					'vote' => array(
+						'required'          => false,
+						'default'           => 5,
+						'description'       => 'The vote to assign.',
+						'type'              => 'integer',
+						'validate_callback' => function ( $param, $request, $key ) {
+							return is_numeric( $param );
+						}
+					),
+				),
+			),
+			array(
+				'methods'  => WP_REST_Server::DELETABLE,
+				'callback' => array( $this, 'delete_item' ),
+			),
 		) );
 	}
 
@@ -1181,8 +1228,8 @@ class BSPF_REST_Images extends WP_REST_Controller {
 	public function get_items( $request ) {
 		$uti  = new BSPFUtilitiesClass();
 		$data = [
-		  'ip'  => $_SERVER['REMOTE_ADDR'],
-		  'pid' => $uti->getVotesByIP(),
+			'ip'  => $_SERVER['REMOTE_ADDR'],
+			'pid' => $uti->getVotesByIP(),
 		];
 
 		return new WP_REST_Response( $data, 200 );
@@ -1202,9 +1249,9 @@ class BSPF_REST_Images extends WP_REST_Controller {
 		$is_voted = in_array( $pid, $voted );
 
 		$data = [
-		  'pid'   => $pid,
-		  'voted' => $is_voted,
-		  'list'  => $voted,
+			'pid'   => $pid,
+			'voted' => $is_voted,
+			'list'  => $voted,
 		];
 
 		return new WP_REST_Response( $data, 200 );
@@ -1468,7 +1515,7 @@ class BSPFUtilitiesClass {
 			$votes = $this->getSeriesVotes( wp_get_current_user()->ID );
 			foreach ( $galleries as $data ) {
 				if ( $vote == 0 ) {
-					if ( !array_key_exists( $data->gid, $votes ) ) {
+					if ( ! array_key_exists( $data->gid, $votes ) ) {
 						$new[ $data->gid ] = (array) $data;
 					}
 				} else {
@@ -1539,6 +1586,73 @@ class BSPFUtilitiesClass {
 		return $wpdb->get_col( $wpdb->prepare( $query, $user_id ) );
 	}
 
+	public function getWorldSPAverages( $category = 'worldsp' ) {
+		global $wpdb;
+
+		/*$query    = "
+            SELECT COUNT(*) as num_votes, AVG(IF(v.vote < 0, 0, v.vote)) as average_full, p.pid, p.filename, g.path
+            FROM {$wpdb->prefix}bspf_votes v
+            INNER JOIN {$wpdb->prefix}ngg_pictures p ON p.pid = v.pid
+            INNER JOIN {$wpdb->prefix}ngg_gallery g ON g.gid = p.galleryid
+            WHERE v.pid <> 0 
+              AND v.user_id <> 0
+              AND g.path LIKE '%made-in-bruxsel%'
+              AND v.vote >= -1
+            GROUP BY p.pid
+            ORDER BY average_full DESC
+        ";*/
+		$query    = "
+            SELECT COUNT(*) as num_votes, AVG(IF(v.vote < 0, 0, v.vote)) as average_full, p.pid, p.filename, g.path
+            FROM {$wpdb->prefix}bspf_votes v
+            INNER JOIN {$wpdb->prefix}ngg_pictures p ON p.pid = v.pid
+            INNER JOIN {$wpdb->prefix}ngg_gallery g ON g.gid = p.galleryid
+            WHERE v.pid <> 0 
+              AND v.user_id <> 0
+              AND g.path LIKE '%made-in-bruxsel%'
+            GROUP BY p.pid
+            ORDER BY average_full DESC
+            LIMIT 40
+        ";
+		$results  = $wpdb->get_results( $wpdb->prepare( $query ) );
+		$averages = $placeholders = $count = [];
+		foreach ( $results as $data ) {
+			$display_name = $this->getDisplayNameFromBasename( $data->filename );
+			$count[ $display_name ] ++;
+			$averages[ $data->pid ] = [
+				'num_votes'    => $data->num_votes,
+				'average_full' => $data->average_full,
+				'filename'     => $data->filename,
+				'display_name' => $display_name,
+				'path'         => $data->path,
+				'current'      => $count[ $display_name ],
+			];
+			$placeholders[]         = "%d";
+		}
+
+		$query   = "
+            SELECT p.pid, v.user_id, u.user_nicename, v.vote 
+            FROM {$wpdb->prefix}bspf_votes v
+            INNER JOIN {$wpdb->prefix}users u ON u.ID = v.user_id
+            INNER JOIN {$wpdb->prefix}ngg_pictures p ON p.pid = v.pid
+            INNER JOIN {$wpdb->prefix}ngg_gallery g ON g.gid = p.galleryid
+              AND p.pid IN (" . implode( ",", $placeholders ) . ")
+            ORDER BY u.user_nicename
+        ";
+		$results = $wpdb->get_results( $wpdb->prepare( $query, array_keys( $averages ) ) );
+		foreach ( $results as $data ) {
+			$averages[ $data->pid ]['users'][] = [
+				'username' => ucfirst( $data->user_nicename ),
+				'vote'     => $data->vote,
+			];
+		}
+
+		foreach ( $averages as $pid => $data ) {
+			$averages[ $pid ]['count'] = $count[ $data['display_name'] ];
+		}
+
+		return $averages;
+	}
+
 	/**
 	 * Gets the averages for the curation galleries.
 	 *
@@ -1572,13 +1686,13 @@ class BSPFUtilitiesClass {
 					$display_name = $this->getDisplayNameFromBasename( $data->filename );
 					$count[ $display_name ] ++;
 					$averages[ $data->pid ] = [
-					  'num_votes'    => $data->num_votes,
-					  'average_full' => $data->average_full,
-					  'average'      => $data->average,
-					  'filename'     => $data->filename,
-					  'display_name' => $display_name,
-					  'path'         => $data->path,
-					  'current'      => $count[ $display_name ],
+						'num_votes'    => $data->num_votes,
+						'average_full' => $data->average_full,
+						'average'      => $data->average,
+						'filename'     => $data->filename,
+						'display_name' => $display_name,
+						'path'         => $data->path,
+						'current'      => $count[ $display_name ],
 					];
 					$placeholders[]         = "%d";
 				}
@@ -1595,8 +1709,8 @@ class BSPFUtilitiesClass {
 				$results = $wpdb->get_results( $wpdb->prepare( $query, array_keys( $averages ) ) );
 				foreach ( $results as $data ) {
 					$averages[ $data->pid ]['users'][] = [
-					  'username' => ucfirst( $data->user_nicename ),
-					  'vote'     => $data->vote,
+						'username' => ucfirst( $data->user_nicename ),
+						'vote'     => $data->vote,
 					];
 				}
 
@@ -1620,10 +1734,10 @@ class BSPFUtilitiesClass {
 				foreach ( $results as $data ) {
 					$display_name = $this->getDisplayNameFromBasename( $data->filename );
 					$averages[]   = [
-					  'votes'        => $data->num,
-					  'filename'     => $data->filename,
-					  'display_name' => $display_name,
-					  'path'         => $data->path,
+						'votes'        => $data->num,
+						'filename'     => $data->filename,
+						'display_name' => $display_name,
+						'path'         => $data->path,
 					];
 				}
 			}
@@ -1643,12 +1757,12 @@ class BSPFUtilitiesClass {
 			$placeholders = [];
 			foreach ( $results as $data ) {
 				$averages[ $data->gid ] = [
-				  'num_votes'    => $data->num_votes,
-				  'average_full' => $data->average_full,
-				  'average'      => $data->average,
-				  'title'        => $data->title,
-				  'display_name' => $this->getDisplayNameFromBasename( $data->title ),
-				  'path'         => $data->path,
+					'num_votes'    => $data->num_votes,
+					'average_full' => $data->average_full,
+					'average'      => $data->average,
+					'title'        => $data->title,
+					'display_name' => $this->getDisplayNameFromBasename( $data->title ),
+					'path'         => $data->path,
 				];
 				$placeholders[]         = "%d";
 			}
@@ -1666,8 +1780,8 @@ class BSPFUtilitiesClass {
 			$results = $wpdb->get_results( $wpdb->prepare( $query, $keys ) );
 			foreach ( $results as $data ) {
 				$averages[ $data->gid ]['users'][] = [
-				  'username' => ucfirst( $data->user_nicename ),
-				  'vote'     => $data->vote,
+					'username' => ucfirst( $data->user_nicename ),
+					'vote'     => $data->vote,
 				];
 			}
 
@@ -1737,14 +1851,14 @@ class BSPFUtilitiesClass {
 	 */
 	public function getFilterViewingText( $count, $vote, $group = 'singles' ) {
 		$tmp = [
-		  - 2 => 'flagged',
-		  - 1 => 'rejected',
-		  0   => 'non voted',
-		  1   => 'voted 1',
-		  2   => 'voted 2',
-		  3   => 'voted 3',
-		  4   => 'voted 4',
-		  5   => 'voted 5',
+			- 2 => 'flagged',
+			- 1 => 'rejected',
+			0   => 'non voted',
+			1   => 'voted 1',
+			2   => 'voted 2',
+			3   => 'voted 3',
+			4   => 'voted 4',
+			5   => 'voted 5',
 		];
 		if ( $group == 'singles' ) {
 			$sin_plu = _n( '1 picture which is', '%s pictures which are', $count );
@@ -1792,15 +1906,16 @@ class BSPFUtilitiesClass {
 	 */
 	public function getDisplayNameFromBasename( $basename ) {
 		return trim( ucwords( preg_replace( '/[0-9]+/', '', str_replace( [
-		  '_',
-		  '-',
-		  '.jpg',
-		  '.JPG',
-		  '.jpeg',
-		  '.JPEG',
-		  'INT',
-		  'BRU'
-		], [ ' ', ' ', '', '', '', '' ], $basename ) ) ) );
+			'_',
+			'-',
+			'.jpg',
+			'.JPG',
+			'.jpeg',
+			'.JPEG',
+			'INT',
+			'BRU',
+            '.'
+		], [ ' ', ' ', '', '', '', '', ' ' ], $basename ) ) ) );
 	}
 
 	/**
@@ -1811,7 +1926,7 @@ class BSPFUtilitiesClass {
 	 * @return array the shuffled array.
 	 */
 	public function shuffle_assoc( $list ) {
-		if ( !is_array( $list ) ) {
+		if ( ! is_array( $list ) ) {
 			return $list;
 		}
 
@@ -1843,5 +1958,3 @@ class BSPFUtilitiesClass {
 }
 
 new BSPFPluginClass();
-
-

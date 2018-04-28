@@ -184,7 +184,7 @@ jQuery(document).ready(function ($) {
 
     $('.facebook-share').on('click', function () {
         FBshare($(this).attr('data-url'));
-    })
+    });
 
     function FBshare(url) {
         FB.ui({

@@ -71,62 +71,68 @@ function gform_my_function($form) {
       var count = gwCountFiles(fieldId, formId);
       var price = 18;
       
-      if ((count + offset) <= 5) {
-        price = (count + offset) * ((formId == 1) ? 18 : 10);
-      }
-      else if ((count + offset) > 5) {
-        price = (count + offset) * ((formId == 1) ? 15 : 8);
-      }
-      //console.log("price: "+price);
-      
-      jQuery("#input_" + formId + "_" + targetId).val(price).change();
-      jQuery("#input_" + formId + "_31").val(count + offset).change();
-      //jQuery(\'#field_1_31 .ginput_container_text\').hide();
-      //jQuery(\'#field_1_31 .gfield_description\').html(count + offset);
-      
-      /*
-      gform.addFilter( \'gform_product_total\', function(total, formId) {
-        //console.log(\'total: \'+ total);
-        //console.log(\'fieldId: \'+ fieldId);
-        return price;
-      });*/
+      // Singles Contest
+      if (formId == 28) {
+	      if ((count + offset) <= 5) {
+	        price = (count + offset) * 18;
+	      }
+	      else if ((count + offset) > 5) {
+	        price = (count + offset) * 15;
+	      }
+	      //console.log("price: "+price);
+	      
+	      jQuery("#input_" + formId + "_" + targetId).val(price).change();
+	      jQuery("#input_" + formId + "_31").val(count + offset).change();
+	      //jQuery(\'#field_1_31 .ginput_container_text\').hide();
+	      //jQuery(\'#field_1_31 .gfield_description\').html(count + offset);
+	      
+	      /*
+	      gform.addFilter( \'gform_product_total\', function(total, formId) {
+	        //console.log(\'total: \'+ total);
+	        //console.log(\'fieldId: \'+ fieldId);
+	        return price;
+	      });*/
+	  }
       
     }
     
     jQuery(document).bind(\'gform_page_loaded\', function(event, formId, current_page) {
       //console.log(\'Inside NEW gform_page_loaded with current_page: \'+ current_page);
       
-      if (formId == 1 && current_page == 4) {
-        var coupon = jQuery(\'#input_1_37\').val();
+      if (formId == 28 && current_page == 4) {
+        var coupon = jQuery(\'#input_28_37\').val();
         //var coupons = ["BSPFTPAAD", "BSPFTPAJF", "BSPFTPARS"];
-        var coupons = ["BSPFTPALOU", "BSPFTPAREX", "BSPFTPANIS"];
+        //var coupons = ["BSPFBaxtonGB", "BSPFBaxtonJS"];
+        var coupons = {
+          BSPFBaxtonGB:6,
+          BSPFBaxtonJS:6,
+        };
         
         //console.log("coupons: "+ coupons);
         //console.log("coupon submitted: "+ coupon);
         
         var validCoupon = false;
-        var length = coupons.length;
-        for (var i = 0; i < length; i++) {
-          if (coupons[i] == coupon) {
-            validCoupon = true;
-            continue;
-          }
-        }
+        if (coupons.hasOwnProperty(coupon)) {
+		  validCoupon = true;
+		}
         
-        var photosSubmitted = jQuery("#input_1_31").val();
+        var photosSubmitted = jQuery("#input_28_31").val();
         var price = ((photosSubmitted <= 5) ? 18 : 15) * photosSubmitted;
+        //console.log("price: "+ price +" and coupon price: "+coupons[coupon]);
         if (validCoupon) {
           //console.log("photos submitted: "+ photosSubmitted);
+          /*
           price = 0;
           if (photosSubmitted == 4 || photosSubmitted == 5) {
             price = (photosSubmitted * 18) - (3 * 18);
           }
           else if (photosSubmitted > 5) {
             price = (photosSubmitted * 15) - (3 * 15);
-          }
+          }*/
+          price = price - coupons[coupon];
           //console.log("new price is: "+ price);
         }
-        jQuery("#input_1_27").val(price).change();
+        jQuery("#input_28_27").val(price).change();
       }
       
     });
